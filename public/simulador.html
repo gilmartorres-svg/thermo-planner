@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Planejamento — SES ThermoTech</title>
+<style>
+  :root{
+    --bg:#10151a; --panel:#171e26; --panel2:#1d2630; --line:#2a3540;
+    --txt:#dce6ee; --dim:#8fa1b0; --ok:#2dd4a7; --warn:#f0b429; --bad:#ff5d5d;
+    --num:ui-monospace,'Cascadia Mono','JetBrains Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:14px/1.45 'Segoe UI',system-ui,sans-serif;padding-bottom:60px}
+  header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,#0c1116,#10151a);border-bottom:1px solid var(--line);padding:12px 18px}
+  header h1{font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  header h1 b{color:var(--ok)}
+  .kpis{display:flex;gap:22px;flex-wrap:wrap;margin-top:8px;align-items:flex-end}
+  .kpi{min-width:120px}
+  .kpi .lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .kpi .val{font-family:var(--num);font-size:21px;font-weight:600}
+  .gauge{flex:1;min-width:260px}
+  .gtrack{height:14px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;position:relative;overflow:hidden;margin-top:4px}
+  .gfill{height:100%;background:var(--ok);width:0%;transition:width .3s}
+  .gmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--warn);left:100%}
+  .gtxt{font-size:11px;color:var(--dim);margin-top:3px;font-family:var(--num)}
+  nav{display:flex;gap:4px;padding:10px 18px 0;flex-wrap:wrap}
+  nav button{background:var(--panel);border:1px solid var(--line);border-bottom:none;color:var(--dim);padding:8px 16px;cursor:pointer;border-radius:6px 6px 0 0;font-size:13px}
+  nav button.on{background:var(--panel2);color:var(--ok);font-weight:600;border-color:#3a4a58}
+  main{padding:0 18px}
+  section.tab{display:none;background:var(--panel2);border:1px solid #3a4a58;border-radius:0 8px 8px 8px;padding:16px}
+  section.tab.on{display:block}
+  h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ok);margin:14px 0 8px}
+  h2:first-child{margin-top:0}
+  p.note{color:var(--dim);font-size:12.5px;margin-bottom:10px;max-width:900px}
+  table{border-collapse:collapse;width:100%;margin-bottom:14px}
+  th,td{border:1px solid var(--line);padding:4px 6px;text-align:center;font-size:12.5px}
+  th{background:var(--panel);color:var(--dim);font-weight:600;font-size:11px;letter-spacing:.03em}
+  td{font-family:var(--num)}
+  td.ro{color:var(--dim);background:var(--panel)}
+  td input,select{width:80px;background:#0d1318;border:1px solid var(--line);color:var(--txt);font-family:var(--num);font-size:12.5px;padding:3px 5px;border-radius:4px;text-align:right}
+  td input:focus{outline:1px solid var(--ok)}
+  td input.viol{border-color:var(--bad);color:var(--bad)}
+  .neg{color:var(--bad)} .pos{color:var(--ok)} .wr{color:var(--warn)}
+  #alertas{margin-top:12px}
+  .al{border-left:3px solid var(--bad);background:#1f1418;padding:6px 10px;margin-bottom:5px;font-size:12.5px;border-radius:0 4px 4px 0}
+  .al.w{border-color:var(--warn);background:#1e1a10}
+  .al b{font-family:var(--num)}
+  .ok-msg{border-left:3px solid var(--ok);background:#10201c;padding:6px 10px;font-size:12.5px;border-radius:0 4px 4px 0}
+  .foot{color:var(--dim);font-size:11.5px;margin-top:14px;max-width:1000px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .toolbar{display:flex;gap:10px;margin:10px 0;flex-wrap:wrap;align-items:center}
+  .toolbar button{background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:6px 14px;border-radius:5px;cursor:pointer;font-size:12.5px}
+  .toolbar button:hover{border-color:var(--ok);color:var(--ok)}
+  .toolbar label{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Simulador de Planejamento · SES · <b>ThermoTech SA</b> · Fábrica R2</h1>
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Lucro líq. acumulado</div><div class="val" id="kLL">—</div></div>
+    <div class="kpi"><div class="lbl">PL final</div><div class="val" id="kPL">—</div></div>
+    <div class="kpi"><div class="lbl">Caixa mínimo</div><div class="val" id="kCx">—</div></div>
+    <div class="kpi"><div class="lbl">Alertas</div><div class="val" id="kAl">—</div></div>
+    <div class="gauge">
+      <div class="lbl" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)">ROE projetado vs meta 55,29% ($1.658.700 de LL)</div>
+      <div class="gtrack"><div class="gfill" id="gFill"></div><div class="gmark" id="gMark"></div></div>
+      <div class="gtxt" id="gTxt">—</div>
+    </div>
+  </div>
+</header>
+
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<script>
+'use strict';
+const P=8, REG=['R1','R2','R3'], FRETE=[20,0,44];
+const CUSTO_MP=40, MP_UN=3, MOD_H=2.4, SAL_H=11, H_PER=480;
+const MOD_UN=MOD_H*SAL_H; // 26.4
+const ARM_MP=3, ARM_PA=4.85, ADMIN=52000, IR=0.30, CAPITAL=3000000;
+const META_ROE=0.5529, META_LL=CAPITAL*META_ROE;
+const MODULO=210; // $/unidade de capacidade (21.000/100)
+const TETO_PROP=20649.76; // 1% de 2.064.976,31
+const OP={c:3000,t:700,d:5300,sal:5280}, SP={c:4700,t:900,d:8500,sal:6500};
+const VD={c:3500,t:1000,d:5900,sal:4600}, SV={c:5000,t:1200,d:9200,sal:7100};
+const cfFaixa=cap=>cap<=0?0:cap<=1250?150000:cap<=2500?175000:cap<=3750?200000:cap<=5000?225000:cap<=6250?250000:275000;
+
+// ---------- estado (pré-carregado com o plano do PDF) ----------
+const zeros=()=>Array(P+1).fill(0);
+const zerosR=()=>Array(P+1).fill(0).map(()=>[0,0,0]);
+let S={
+  capIni:2000, pagto:'100',
+  exp:   [0,0,500,0,500,0,0,0,0],
+  prog:  [0,2000,2000,2500,3000,3000,3000,0,0],
+  mp:    [0,6000,6000,7500,9000,9000,9000,0,0],
+  vendas:[[0,0,0],[0,0,0],[0,0,0],[300,1000,700],[300,1000,700],[350,1250,900],[450,1450,1100],[450,1450,1100],[450,1450,1100]],
+  preco: [[0,0,0],[0,0,0],[0,0,0],[500,470,450],[500,470,450],[500,470,450],[510,480,455],[510,480,455],[510,480,455]],
+  vend:  [[0,0,0],[0,0,0],[0,0,0],[3,10,9],[3,10,9],[4,11,10],[4,12,14],[4,12,14],[4,12,14]],
+  propT: [[0,0,0],[4000,15000,15000],[4000,15000,15000],[4000,15000,15000],[4000,15000,15000],[4000,15000,15000],[4000,15000,15000],[2000,7000,7000],[0,0,0]],
+  propO: [[0,0,0],[10000,15000,5000],[10000,15000,5000],[10000,15000,5000],[10000,15000,5000],[10000,15000,5000],[10000,15000,5000],[5000,7000,3000],[0,0,0]],
+  pd:    [0,34000,34000,34000,25000,25000,25000,0,0],
+  opC:[0,10,0,3,2,0,0,0,0], opD:zeros(), spC:[0,1,0,1,0,0,0,0,0], spD:zeros(),
+  vdC:[0,0,22,0,3,5,0,0,0], vdD:zeros(), svC:[0,0,3,0,1,0,0,0,0], svD:zeros(),
+  com:[0,2,2,2,2,2,2,2,2],
+  apG:[0,300000,300000,300000,300000,300000,300000,300000,400000],
+  apC:[0,700000,500000,400000,500000,600000,700000,800000,0],
+  apM:[0,1200000,0,0,0,0,0,0,0],
+  emC:zeros(), emL:zeros()
+};
+
+const fmt=v=>{const n=Math.round(v);const s=Math.abs(n).toLocaleString('pt-BR');return (n<0?'-':'')+s};
+const fm$=v=>'$ '+fmt(v);
+
+// ---------- motor de cálculo ----------
+let R=null, ALERTAS=[];
+function calc(){
+  ALERTAS=[];
+  const A=(t,w)=>ALERTAS.push({t,w:!!w});
+  const cap=zeros(), op=zeros(), sp=zeros(), vd=zeros(), sv=zeros();
+  const prod=zeros(), mpFim=zeros(), paFim=zeros(), vTot=zeros(), receita=zeros();
+  const vReal=zerosR();
+  // capacidade e quadros de pessoal (efeito T+1)
+  cap[1]=S.capIni;
+  for(let p=2;p<=P;p++) cap[p]=cap[p-1]+(+S.exp[p-1]||0);
+  for(let p=1;p<=P;p++){
+    op[p]=(op[p-1]||0)+(+S.opC[p-1]||0)-(+S.opD[p-1]||0);
+    sp[p]=(sp[p-1]||0)+(+S.spC[p-1]||0)-(+S.spD[p-1]||0);
+    vd[p]=(vd[p-1]||0)+(+S.vdC[p-1]||0)-(+S.vdD[p-1]||0);
+    sv[p]=(sv[p-1]||0)+(+S.svC[p-1]||0)-(+S.svD[p-1]||0);
+  }
+  // fluxos futuros (índice = período de pagamento/recebimento)
+  const outF=zeros(), inF=zeros();
+  // fábrica inicial: decidida em P1
+  const capex0=S.capIni*MODULO;
+  outF[1]+=capex0*.5; outF[2]+=capex0*.25; outF[3]+=capex0*.25;
+  for(let p=1;p<=P;p++){ const e=(+S.exp[p]||0)*MODULO;
+    if(e){ outF[p]+=e*.5; if(p+1<=P)outF[p+1]+=e*.25; if(p+2<=P)outF[p+2]+=e*.25; } }
+  // MP: pedida em T chega T+1, paga 20/40/40
+  for(let p=1;p<=P;p++){ const c=(+S.mp[p]||0)*CUSTO_MP;
+    if(c){ outF[p]+=c*.2; if(p+1<=P)outF[p+1]+=c*.4; if(p+2<=P)outF[p+2]+=c*.4; } }
+
+  // produção, estoques, vendas
+  for(let p=1;p<=P;p++){
+    const mpDisp=(mpFim[p-1]||0)+(p>=2?(+S.mp[p-1]||0):0);
+    const supNec=Math.ceil(op[p]/12)||0;
+    const produt=(op[p]>0&&sp[p]<supNec)?0.8:1.0;
+    if(op[p]>0&&sp[p]<supNec) A(`P${p}: supervisores de produção insuficientes (${sp[p]}/${supNec}) — produtividade reduzida a 80%`);
+    const hDisp=op[p]*H_PER*produt;
+    const progAnt=p>=2?(+S.prog[p-1]||0):0;
+    let q=Math.min(progAnt,cap[p],Math.floor(hDisp/MOD_H),Math.floor(mpDisp/MP_UN));
+    if(progAnt>cap[p]) A(`P${p}: programação (${fmt(progAnt)}) excede a capacidade (${fmt(cap[p])})`);
+    if(progAnt>Math.floor(hDisp/MOD_H)) A(`P${p}: horas de MOD insuficientes para produzir ${fmt(progAnt)} (máx ${fmt(Math.floor(hDisp/MOD_H))})`);
+    if(progAnt>Math.floor(mpDisp/MP_UN)) A(`P${p}: matéria-prima insuficiente para produzir ${fmt(progAnt)} (máx ${fmt(Math.floor(mpDisp/MP_UN))})`);
+    prod[p]=Math.max(0,q);
+    mpFim[p]=mpDisp-prod[p]*MP_UN;
+    // vendas: cap ao disponível, prioridade R2 > R3 > R1
+    const disp=(paFim[p-1]||0)+prod[p];
+    const want=[+S.vendas[p][0]||0,+S.vendas[p][1]||0,+S.vendas[p][2]||0];
+    let rest=disp; const got=[0,0,0];
+    for(const r of [1,2,0]){ got[r]=Math.min(want[r],rest); rest-=got[r]; }
+    if(want[0]+want[1]+want[2]>disp) A(`P${p}: previsão de vendas (${fmt(want[0]+want[1]+want[2])}) maior que o disponível (${fmt(disp)}) — corte por prioridade R2>R3>R1`,true);
+    for(const r of [0,1,2]){ if(got[r]>0&&(+S.vend[p][r]||0)===0) A(`P${p}: vendas planejadas em ${REG[r]} sem nenhum vendedor alocado`); }
+    vReal[p]=got; vTot[p]=got[0]+got[1]+got[2];
+    paFim[p]=disp-vTot[p];
+    receita[p]=got[0]*(+S.preco[p][0]||0)+got[1]*(+S.preco[p][1]||0)+got[2]*(+S.preco[p][2]||0);
+    // recebimentos
+    const rv=receita[p];
+    if(S.pagto==='100') inF[p]+=rv;
+    else if(S.pagto==='5050'){ inF[p]+=rv*.5; if(p+1<=P)inF[p+1]+=rv*.5; }
+    else { inF[p]+=rv*.33; if(p+1<=P)inF[p+1]+=rv*.33; if(p+2<=P)inF[p+2]+=rv*.34; }
+    // vendedores alocados vs disponíveis / supervisão
+    const aloc=(+S.vend[p][0]||0)+(+S.vend[p][1]||0)+(+S.vend[p][2]||0);
+    if(aloc>vd[p]) A(`P${p}: vendedores alocados (${aloc}) excedem os disponíveis (${vd[p]})`);
+    const svNec=Math.ceil(vd[p]/8)||0;
+    if(vd[p]>0&&sv[p]<svNec) A(`P${p}: supervisores de venda insuficientes (${sv[p]}/${svNec}) — perda de até 30% de produtividade da força de vendas`);
+    // propaganda: teto por célula
+    for(const r of [0,1,2]){ if((+S.propT[p][r]||0)>TETO_PROP||(+S.propO[p][r]||0)>TETO_PROP) A(`P${p}: propaganda em ${REG[r]} acima do teto de $20.650 por mídia`); }
+  }
+  if((+S.prog[7]||0)>0||(+S.prog[8]||0)>0) A('Programação em P7/P8 gera produto vendável apenas após o fim do jogo (venda em T+2)',true);
+  const pdAc=S.pd.slice(1).reduce((a,b)=>a+(+b||0),0);
+  if(pdAc>0&&pdAc<102000) A(`P&D acumulado total de ${fm$(pdAc)} — abaixo dos $102.000 do ponto de saturação (~51%)`,true);
+
+  // ---------- DRE e caixa ----------
+  const dre=[], cash=zeros(); let caixa=CAPITAL, llAcum=0, caixaMin=Infinity;
+  const irPag=zeros(), folhaPag=zeros(), rotSaldo=zeros();
+  // aplicações/empréstimos: retornos futuros
+  const apRet=zeros(), emPay=zeros();
+  for(let p=1;p<=P;p++){
+    if(+S.apC[p]&&p+1<=P) apRet[p+1]+=(+S.apC[p])*1.035;
+    if(+S.apM[p]&&p+2<=P) apRet[p+2]+=(+S.apM[p])*1.04;
+    if(+S.emC[p]&&p+1<=P) emPay[p+1]+=(+S.emC[p])*1.049;
+  }
+  // LP: juros 4,3%/per., amortização em 4 parcelas após carência de 4 períodos
+  const lpJur=zeros(), lpAmt=zeros();
+  for(let p=1;p<=P;p++){ const L=+S.emL[p]||0; if(!L)continue;
+    let saldo=L;
+    for(let t=p+1;t<=P;t++){ lpJur[t]+=saldo*0.043;
+      if(t>p+4){ const par=L/4; lpAmt[t]+=par; saldo-=par; } } }
+
+  for(let p=1;p<=P;p++){
+    // DRE do período
+    const cpv=vTot[p]*(CUSTO_MP*MP_UN+MOD_UN);
+    const frete=vReal[p][0]*FRETE[0]+vReal[p][2]*FRETE[2];
+    const comis=receita[p]*((+S.com[p]||0)/100);
+    const arm=mpFim[p]*ARM_MP+paFim[p]*ARM_PA;
+    const prop=(+S.propT[p][0]||0)+(+S.propT[p][1]||0)+(+S.propT[p][2]||0)+(+S.propO[p][0]||0)+(+S.propO[p][1]||0)+(+S.propO[p][2]||0);
+    const pd=+S.pd[p]||0;
+    const fixos=cfFaixa(cap[p]);
+    const hProd=prod[p]*MOD_H, hTot=op[p]*H_PER;
+    const folhaOp=op[p]*OP.sal;
+    const folhaOpExtra=Math.max(0,folhaOp-prod[p]*MOD_UN);
+    const folhaSup=sp[p]*SP.sal, folhaVd=vd[p]*VD.sal, folhaSv=sv[p]*SV.sal;
+    const contr=(+S.opC[p]||0)*(OP.c+OP.t)+(+S.spC[p]||0)*(SP.c+SP.t)+(+S.vdC[p]||0)*(VD.c+VD.t)+(+S.svC[p]||0)*(SV.c+SV.t)
+               +(+S.opD[p]||0)*OP.d+(+S.spD[p]||0)*SP.d+(+S.vdD[p]||0)*VD.d+(+S.svD[p]||0)*SV.d;
+    const jGiro=(p>=2?(+S.apG[p-1]||0)*0.018:0);
+    const jCP=(p>=2?(+S.apC[p-1]||0)*0.035:0);
+    const jMP=(p>=3?(+S.apM[p-2]||0)*0.04:0);
+    const jRec=jGiro+jCP+jMP;
+    const jRot=(rotSaldo[p-1]||0)*0.08;
+    const jEmC=(p>=2?(+S.emC[p-1]||0)*0.049:0);
+    const jPag=jRot+jEmC+lpJur[p];
+    const lair=receita[p]-cpv-frete-comis-arm-prop-pd-fixos-ADMIN-folhaOpExtra-folhaSup-folhaVd-folhaSv-contr+jRec-jPag;
+    const ir=lair>0?lair*IR:0;
+    const ll=lair-ir;
+    llAcum+=ll;
+    if(p+1<=P) irPag[p+1]+=ir;
+    const folhaCaixa=folhaOp+folhaSup+folhaVd+folhaSv+contr+comis;
+    if(p+1<=P) folhaPag[p+1]+=folhaCaixa;
+    // ---------- caixa ----------
+    let cx=caixa;
+    cx+=inF[p];
+    cx+=apRet[p];
+    cx+=(p>=2?((+S.apG[p-1]||0)*1.018):0);
+    cx+=(+S.emC[p]||0)+(+S.emL[p]||0);
+    cx-=outF[p];
+    cx-=prop+pd+ADMIN+fixos+arm;
+    cx-=folhaPag[p]; cx-=irPag[p];
+    cx-=emPay[p]; cx-=lpJur[p]+lpAmt[p];
+    cx-=(rotSaldo[p-1]||0)*1.08;
+    let apG=+S.apG[p]||0, apC=+S.apC[p]||0, apM=+S.apM[p]||0;
+    cx-=apG+apC+apM;
+    if(cx<0&&apG>0){ const usa=Math.min(apG,-cx); cx+=usa; apG-=usa;
+      A(`P${p}: aplicação de giro resgatada antecipadamente (${fm$(usa)}) para cobrir o caixa`,true); }
+    if(cx<0){ rotSaldo[p]=-cx; cx=0; A(`P${p}: caixa estourou — rotativo automático de ${fm$(rotSaldo[p])} a 8% (pago em P${p+1})`); }
+    cash[p]=cx; caixa=cx; caixaMin=Math.min(caixaMin,cx);
+    dre.push({p,receita:receita[p],cpv,frete,comis,arm,prop,pd,fixos,admin:ADMIN,ocios:folhaOpExtra,folhaSup,folhaVd,folhaSv,contr,jRec,jPag,lair,ir,ll,llAcum,caixa:cx,prod:prod[p],vTot:vTot[p],cap:cap[p],pa:paFim[p],mp:mpFim[p],op:op[p],sp:sp[p],vd:vd[p],sv:sv[p]});
+  }
+  R={dre,llAcum,pl:CAPITAL+llAcum,roe:llAcum/CAPITAL,caixaMin,cap,op,sp,vd,sv,prod,vTot,receita,paFim,mpFim};
+}
+
+// ---------- interface ----------
+const TABS=[['estr','Estratégia'],['prod','Produção'],['mkt','Marketing'],['pes','Pessoas'],['fin','Finanças'],['res','Resultados']];
+const nav=document.getElementById('nav'), main=document.getElementById('main');
+TABS.forEach(([id,nome],i)=>{
+  const b=document.createElement('button'); b.textContent=nome; b.dataset.t=id; if(i===0)b.classList.add('on');
+  b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    document.querySelectorAll('section.tab').forEach(x=>x.classList.toggle('on',x.id==='t-'+id));};
+  nav.appendChild(b);
+  const s=document.createElement('section'); s.className='tab'+(i===0?' on':''); s.id='t-'+id; main.appendChild(s);
+});
+
+function inp(arr,p,r){
+  const v=r===undefined?S[arr][p]:S[arr][p][r];
+  return `<input data-a="${arr}" data-p="${p}" ${r!==undefined?`data-r="${r}"`:''} value="${v}">`;
+}
+function tbl(head,rows){ return `<table><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td${String(c).startsWith('<input')?'':' class="ro"'}>${c}</td>`).join('')}</tr>`).join('')}</table>`; }
+
+function render(){
+  calc();
+  document.getElementById('t-estr').innerHTML=`
+    <h2>Capacidade e expansões (expansão decidida em T opera em T+1)</h2>
+    <p class="note">Capacidade inicial: <input data-a="capIni" value="${S.capIni}" style="width:90px"> unidades ($210/unidade, pago 50/25/25). Degraus de custo fixo: 175k até 2.500 · 200k até 3.750 · 225k até 5.000.</p>
+    ${tbl(['Período','Capacidade em T','Expansão p/ T+1','Custo fixo do período'],
+      Array.from({length:P},(_,i)=>{const p=i+1;return [p,fmt(R.cap[p]),inp('exp',p),fm$(cfFaixa(R.cap[p]))];}))}`;
+  document.getElementById('t-prod').innerHTML=`
+    <h2>Programação (T) → Produção (T+1) → Venda (T+2)</h2>
+    ${tbl(['Período','Capacidade','Programação p/ T+1','Compra MP p/ T+1','Horas MOD necessárias','Produção (resultado)','Estoque final MP'],
+      Array.from({length:P},(_,i)=>{const p=i+1;const d=R.dre[i];
+        return [p,fmt(d.cap),inp('prog',p),inp('mp',p),fmt((+S.prog[p]||0)*MOD_H),fmt(d.prod),fmt(d.mp)];}))}
+    <p class="note">Produção limitada por: programação do período anterior, capacidade, horas de MOD disponíveis (operários × 480h × produtividade) e MP em estoque (3 por unidade).</p>`;
+  document.getElementById('t-mkt').innerHTML=`
+    <h2>Previsão de vendas (prioridade fixa R2 → R3 → R1)</h2>
+    <p class="note">Forma de pagamento: <select data-a="pagto">
+      <option value="100"${S.pagto==='100'?' selected':''}>100% em T</option>
+      <option value="5050"${S.pagto==='5050'?' selected':''}>50% T / 50% T+1</option>
+      <option value="333334"${S.pagto==='333334'?' selected':''}>33/33/34</option></select></p>
+    ${tbl(['Período','Disponível','Vendas R1','Vendas R2','Vendas R3','Vendido (real)','Estoque final PA','Receita'],
+      Array.from({length:P},(_,i)=>{const p=i+1;const d=R.dre[i];
+        return [p,fmt((i>0?R.dre[i-1].pa:0)+d.prod),inp('vendas',p,0),inp('vendas',p,1),inp('vendas',p,2),fmt(d.vTot),fmt(d.pa),fm$(d.receita)];}))}
+    <div class="grid2"><div>
+    <h2>Preço por região</h2>
+    ${tbl(['Período','R1','R2','R3'],Array.from({length:P},(_,i)=>{const p=i+1;return [p,inp('preco',p,0),inp('preco',p,1),inp('preco',p,2)];}))}
+    </div><div>
+    <h2>Vendedores alocados por região</h2>
+    ${tbl(['Período','R1','R2','R3','Total','Disponíveis'],Array.from({length:P},(_,i)=>{const p=i+1;
+      const t=(+S.vend[p][0]||0)+(+S.vend[p][1]||0)+(+S.vend[p][2]||0);
+      return [p,inp('vend',p,0),inp('vend',p,1),inp('vend',p,2),fmt(t),fmt(R.vd[p])];}))}
+    </div></div>
+    <h2>Propaganda (teto $20.650 por mídia/região/período · efeito 25%→50%→100%)</h2>
+    ${tbl(['Período','R1 Trad','R1 Online','R2 Trad','R2 Online','R3 Trad','R3 Online','Total'],
+      Array.from({length:P},(_,i)=>{const p=i+1;
+        const t=[0,1,2].reduce((a,r)=>a+(+S.propT[p][r]||0)+(+S.propO[p][r]||0),0);
+        return [p,inp('propT',p,0),inp('propO',p,0),inp('propT',p,1),inp('propO',p,1),inp('propT',p,2),inp('propO',p,2),fm$(t)];}))}
+    <h2>P&amp;D (saturação em $102.000 acumulados ≈ 51%)</h2>
+    ${tbl(['Período',...Array.from({length:P},(_,i)=>'P'+(i+1)),'Total'],
+      [['Investimento',...Array.from({length:P},(_,i)=>inp('pd',i+1)),fm$(S.pd.slice(1).reduce((a,b)=>a+(+b||0),0))]])}`;
+  document.getElementById('t-pes').innerHTML=`
+    <h2>Operacional (contrata em T, trabalha em T+1 · 1 supervisor : 12 operários)</h2>
+    ${tbl(['Período','Contratar oper.','Demitir oper.','Disponíveis','Contratar sup.','Demitir sup.','Sup. disponíveis','Sup. necessários'],
+      Array.from({length:P},(_,i)=>{const p=i+1;
+        return [p,inp('opC',p),inp('opD',p),fmt(R.op[p]),inp('spC',p),inp('spD',p),fmt(R.sp[p]),fmt(Math.ceil(R.op[p]/12))];}))}
+    <h2>Comercial (contrata em T, trabalha em T+1 · 1 supervisor : 8 vendedores)</h2>
+    ${tbl(['Período','Contratar vend.','Demitir vend.','Disponíveis','Contratar sup.','Demitir sup.','Sup. disponíveis','Comissão %'],
+      Array.from({length:P},(_,i)=>{const p=i+1;
+        return [p,inp('vdC',p),inp('vdD',p),fmt(R.vd[p]),inp('svC',p),inp('svD',p),fmt(R.sv[p]),inp('com',p)];}))}
+    <p class="note">Folha, contratações, demissões e comissões são pagas no período seguinte (T+1).</p>`;
+  document.getElementById('t-fin').innerHTML=`
+    <div class="grid2"><div>
+    <h2>Aplicações</h2>
+    ${tbl(['Período','Giro (1,8%, T+1)','Curto prazo (3,5%, T+1)','Médio prazo (4%, T+2)'],
+      Array.from({length:P},(_,i)=>{const p=i+1;return [p,inp('apG',p),inp('apC',p),inp('apM',p)];}))}
+    </div><div>
+    <h2>Financiamentos</h2>
+    ${tbl(['Período','Emprést. CP (4,9%)','Emprést. LP (4,3%, carência 4)'],
+      Array.from({length:P},(_,i)=>{const p=i+1;return [p,inp('emC',p),inp('emL',p)];}))}
+    </div></div>
+    <p class="note">O rotativo (8%) é acionado automaticamente pelo motor quando o caixa projetado fica negativo — aparece nos alertas. A aplicação de giro é resgatada antes, sem remuneração, como no jogo.</p>`;
+  const d=R.dre;
+  document.getElementById('t-res').innerHTML=`
+    <h2>DRE por período</h2>
+    ${tbl(['','P1','P2','P3','P4','P5','P6','P7','P8'],[
+      ['Receita',...d.map(x=>fm$(x.receita))],
+      ['CPV (MP+MOD)',...d.map(x=>fm$(-x.cpv))],
+      ['Frete',...d.map(x=>fm$(-x.frete))],
+      ['Comissões',...d.map(x=>fm$(-x.comis))],
+      ['Propaganda',...d.map(x=>fm$(-x.prop))],
+      ['P&D',...d.map(x=>fm$(-x.pd))],
+      ['Custos fixos',...d.map(x=>fm$(-x.fixos))],
+      ['Administrativas',...d.map(x=>fm$(-x.admin))],
+      ['Ociosidade MOD',...d.map(x=>fm$(-x.ocios))],
+      ['Folha superv. prod.',...d.map(x=>fm$(-x.folhaSup))],
+      ['Folha comercial',...d.map(x=>fm$(-(x.folhaVd+x.folhaSv)))],
+      ['Contrat./demissões',...d.map(x=>fm$(-x.contr))],
+      ['Armazenagem',...d.map(x=>fm$(-x.arm))],
+      ['Result. financeiro',...d.map(x=>fm$(x.jRec-x.jPag))],
+      ['LAIR',...d.map(x=>`<span class="${x.lair<0?'neg':'pos'}">${fm$(x.lair)}</span>`)],
+      ['IR (30%)',...d.map(x=>fm$(-x.ir))],
+      ['Lucro líquido',...d.map(x=>`<span class="${x.ll<0?'neg':'pos'}">${fm$(x.ll)}</span>`)],
+      ['LL acumulado',...d.map(x=>`<span class="${x.llAcum<0?'neg':'pos'}">${fm$(x.llAcum)}</span>`)],
+      ['Caixa final',...d.map(x=>`<span class="${x.caixa<250000?'wr':''}">${fm$(x.caixa)}</span>`)]
+    ])}
+    <div id="alertas"></div>
+    <p class="foot"><b>Premissas do motor (iguais às do planejamento do jogo):</b> toda a previsão de vendas é vendida se houver produto — propaganda, P&D e vendedores entram como custo, não como atratores de demanda (o simulador oficial faz o mesmo na fase de plano). Simplificações declaradas: IR sem compensação de prejuízo; juro do giro calculado sobre o valor aplicado mesmo com resgate parcial antecipado; CPV a custo padrão ($120 MP + $26,40 MOD) em vez de custo médio. Use este arquivo para iterar rápido; o número oficial é sempre o do relatório gerencial do SES.</p>`;
+  const box=document.getElementById('alertas');
+  if(ALERTAS.length===0) box.innerHTML='<div class="ok-msg">Nenhuma violação de regra detectada no plano atual.</div>';
+  else box.innerHTML='<h2>Alertas de consistência</h2>'+ALERTAS.map(a=>`<div class="al${a.w?' w':''}">${a.t}</div>`).join('');
+  document.getElementById('kLL').textContent=fm$(R.llAcum);
+  document.getElementById('kLL').className='val '+(R.llAcum<0?'neg':'pos');
+  document.getElementById('kPL').textContent=fm$(R.pl);
+  document.getElementById('kCx').textContent=fm$(R.caixaMin);
+  document.getElementById('kCx').className='val '+(R.caixaMin<0?'neg':R.caixaMin<250000?'wr':'');
+  document.getElementById('kAl').textContent=ALERTAS.length;
+  document.getElementById('kAl').className='val '+(ALERTAS.filter(a=>!a.w).length?'neg':ALERTAS.length?'wr':'pos');
+  const pct=Math.max(0,Math.min(140,(R.llAcum/META_LL)*100));
+  document.getElementById('gFill').style.width=Math.min(100,(pct/140)*100)+'%';
+  document.getElementById('gMark').style.left=(100/140*100)+'%';
+  document.getElementById('gFill').style.background=R.llAcum>=META_LL?'var(--ok)':R.llAcum>=META_LL*.6?'var(--warn)':'var(--bad)';
+  document.getElementById('gTxt').textContent=`ROE projetado: ${(R.roe*100).toFixed(1)}% · Meta: 55,29% · Gap: ${fm$(R.llAcum-META_LL)}`;
+}
+
+main.addEventListener('change',e=>{
+  const el=e.target; if(!el.dataset||!el.dataset.a)return;
+  const a=el.dataset.a;
+  if(a==='capIni'){S.capIni=+el.value||0;}
+  else if(a==='pagto'){S.pagto=el.value;}
+  else if(el.dataset.r!==undefined){S[a][+el.dataset.p][+el.dataset.r]=+el.value||0;}
+  else {S[a][+el.dataset.p]=+el.value||0;}
+  const tabOn=document.querySelector('nav button.on').dataset.t;
+  render();
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.t===tabOn));
+  document.querySelectorAll('section.tab').forEach(x=>x.classList.toggle('on',x.id==='t-'+tabOn));
+});
+render();
+</script>
+</body>
+</html>
