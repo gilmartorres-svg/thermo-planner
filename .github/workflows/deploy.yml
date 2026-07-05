@@ -21,6 +21,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Fixar nome do worker
+        run: |
+          sudo apt-get install -y jq >/dev/null 2>&1 || true
+          jq '.name = "thermo-planner"' .output/server/wrangler.json > /tmp/w.json && mv /tmp/w.json .output/server/wrangler.json
+          cat .output/server/wrangler.json
+
       - name: Deploy to Cloudflare
         run: npx nitro deploy --prebuilt
         env:
