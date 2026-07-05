@@ -83,7 +83,9 @@ function Simulador() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">
+        <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6 space-y-4">
+          <IndicadoresBar R={ctx.R} />
+
           {sec === "estrategia" && <TelaEstrategia {...ctx} />}
           {sec === "producao" && <TelaProducao {...ctx} />}
           {sec === "marketing" && <TelaMarketing {...ctx} />}
