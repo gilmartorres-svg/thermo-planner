@@ -943,3 +943,75 @@ function KPI({ label, value, color }: { label: string; value: string; color?: "g
     </div>
   );
 }
+
+// ─── Indicadores oficiais (Faturamento / Lucratividade / Crescimento do PL) ───
+export function calcIndicadores(R: ResultadoSimulacao) {
+  const faturamento = R.receita.reduce((a, b) => a + (b || 0), 0);
+  const lucratividade = R.roe;
+  const dre = R.dre;
+  let crescPL = 0;
+  if (dre.length >= 2) {
+    const CAP = 3_000_000;
+    const plAnt = CAP + dre[dre.length - 2].llAcum;
+    const plFim = CAP + dre[dre.length - 1].llAcum;
+    crescPL = plAnt !== 0 ? (plFim - plAnt) / plAnt : 0;
+  }
+  return { faturamento, lucratividade, crescPL };
+}
+
+function IndicadorCard({
+  nome, peso, valor, detalhe, tone, compact,
+}: { nome: string; peso: number; valor: string; detalhe?: string; tone?: "green" | "red" | "amber"; compact?: boolean }) {
+  const valColor =
+    tone === "red" ? "text-[#b23a4c]" :
+    tone === "green" ? "text-[#0f8a5f]" :
+    tone === "amber" ? "text-[#a06a00]" :
+    "text-foreground";
+  return (
+    <div className="rounded-md border border-border bg-card shadow-sm px-3 py-2 flex items-center gap-2 sm:gap-3 min-w-0">
+      <span
+        className="inline-flex items-center justify-center rounded bg-[#1f6feb] text-white text-[11px] font-bold w-6 h-6 shrink-0"
+        title={`Peso ${peso}`}
+      >
+        {peso}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{nome}</div>
+        <div className={cn("font-semibold tabular-nums truncate", compact ? "text-sm" : "text-xl", valColor)}>
+          {valor}
+        </div>
+        {detalhe && !compact && (
+          <div className="text-[11px] text-muted-foreground truncate">{detalhe}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; compact?: boolean }) {
+  const { faturamento, lucratividade, crescPL } = calcIndicadores(R);
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <IndicadorCard
+        nome="Faturamento" peso={4}
+        valor={money(faturamento)}
+        detalhe="Receita total projetada (8 períodos)"
+        compact={compact}
+      />
+      <IndicadorCard
+        nome="Lucratividade" peso={7}
+        valor={(lucratividade * 100).toFixed(2) + "%"}
+        detalhe={`ROE — LL acum. ${money(R.llAcum)}`}
+        tone={lucratividade < 0 ? "red" : lucratividade >= META_ROE ? "green" : "amber"}
+        compact={compact}
+      />
+      <IndicadorCard
+        nome="Crescimento do PL" peso={6}
+        valor={(crescPL * 100).toFixed(2) + "%"}
+        detalhe={`PL final ${money(R.pl)}`}
+        tone={crescPL < 0 ? "red" : crescPL > 0 ? "green" : undefined}
+        compact={compact}
+      />
+    </div>
+  );
+}
