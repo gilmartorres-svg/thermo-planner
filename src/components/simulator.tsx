@@ -258,7 +258,7 @@ export function TelaProducao({ S, R, setPer }: SimCtx) {
 export function TelaMarketing({ S, R, setPer, setPerReg, setScalar }: SimCtx) {
   return (
     <Tabs defaultValue="previsao" className="w-full">
-      <TabsList className="bg-muted">
+      <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="previsao">Previsão</TabsTrigger>
         <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
         <TabsTrigger value="propaganda">Propaganda</TabsTrigger>
@@ -618,7 +618,7 @@ function MktPD({ S, setPer }: { S: EstadoPlano; setPer: SimCtx["setPer"] }) {
 export function TelaPessoas({ S, R, setPer }: SimCtx) {
   return (
     <Tabs defaultValue="op" className="w-full">
-      <TabsList className="bg-muted">
+      <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="op">Operacional</TabsTrigger>
         <TabsTrigger value="cm">Comercial</TabsTrigger>
       </TabsList>
@@ -722,7 +722,7 @@ function GrupoRH({
 export function TelaFinancas({ S, setPer }: SimCtx) {
   return (
     <Tabs defaultValue="inv" className="w-full">
-      <TabsList className="bg-muted">
+      <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="inv">Investimentos</TabsTrigger>
         <TabsTrigger value="fin">Financiamentos</TabsTrigger>
       </TabsList>
