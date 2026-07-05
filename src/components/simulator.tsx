@@ -871,31 +871,35 @@ export function TelaResultados({ R }: SimCtx) {
       </SectionCard>
 
       <SectionCard title="DRE — Período a Período" icon="📑">
-        <div className="overflow-auto rounded border border-border">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded border border-border -mx-1 sm:mx-0">
+          <table className="w-full min-w-max text-[11px] sm:text-xs">
             <thead>
               <tr className="bg-[#e6efef]">
-                <th className="text-left px-3 py-2 sticky left-0 bg-[#e6efef]">Conta</th>
+                <th className="text-left px-3 py-2 sticky left-0 z-10 bg-[#e6efef] whitespace-nowrap">Conta</th>
                 {R.dre.map((d) => (
-                  <th key={d.p} className="text-right px-3 py-2 whitespace-nowrap">P{d.p}</th>
+                  <th key={d.p} className="text-right px-3 py-2 whitespace-nowrap bg-[#e6efef]">P{d.p}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {linhas.map((l, i) => (
-                <tr key={l.nome} className={cn(i % 2 && "bg-muted/40", l.bold && "font-semibold")}>
-                  <td className="px-3 py-1.5 border-t border-border sticky left-0 bg-inherit">{l.nome}</td>
-                  {R.dre.map((d) => {
-                    const v = l.get(d);
-                    return (
-                      <td key={d.p} className={cn(
-                        "px-3 py-1.5 text-right border-t border-border whitespace-nowrap",
-                        v < 0 && "text-[#b23a4c]",
-                      )}>{fmt2(v)}</td>
-                    );
-                  })}
-                </tr>
-              ))}
+              {linhas.map((l, i) => {
+                const rowBg = i % 2 ? "bg-[#eef1f1]" : "bg-card";
+                return (
+                  <tr key={l.nome} className={cn(l.bold && "font-semibold")}>
+                    <td className={cn("px-3 py-1.5 border-t border-border sticky left-0 z-10 whitespace-nowrap", rowBg)}>{l.nome}</td>
+                    {R.dre.map((d) => {
+                      const v = l.get(d);
+                      return (
+                        <td key={d.p} className={cn(
+                          "px-3 py-1.5 text-right border-t border-border whitespace-nowrap",
+                          rowBg,
+                          v < 0 && "text-[#b23a4c]",
+                        )}>{fmt2(v)}</td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
