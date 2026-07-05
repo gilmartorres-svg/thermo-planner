@@ -109,8 +109,8 @@ export function SectionCard({
 
 export function Zebra({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-auto rounded border border-border">
-      <table className="w-full text-sm [&_th]:bg-[#e6efef] [&_th]:text-foreground [&_th]:font-semibold [&_th]:text-left [&_th]:px-3 [&_th]:py-2 [&_td]:px-3 [&_td]:py-1.5 [&_td]:border-t [&_td]:border-border [&_tbody_tr:nth-child(even)]:bg-muted/40">
+    <div className="overflow-x-auto rounded border border-border -mx-1 sm:mx-0">
+      <table className="w-full min-w-max text-xs sm:text-sm [&_th]:bg-[#e6efef] [&_th]:text-foreground [&_th]:font-semibold [&_th]:text-left [&_th]:px-3 [&_th]:py-2 [&_th]:whitespace-nowrap [&_td]:px-3 [&_td]:py-1.5 [&_td]:border-t [&_td]:border-border [&_td]:whitespace-nowrap [&_tbody_tr:nth-child(even)]:bg-muted/40 [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-10 [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:bg-card [&_tbody_tr:nth-child(even)_td:first-child]:bg-[#eef1f1]">
         {children}
       </table>
     </div>
