@@ -964,26 +964,29 @@ export function calcIndicadores(R: ResultadoSimulacao) {
 }
 
 function IndicadorCard({
-  nome, peso, valor, detalhe, tone, compact,
-}: { nome: string; peso: number; valor: string; detalhe?: string; tone?: "green" | "red" | "amber"; compact?: boolean }) {
+  nome, peso, valor, subvalor, detalhe, tone, compact,
+}: { nome: string; peso: number; valor: string; subvalor?: string; detalhe?: string; tone?: "green" | "red" | "amber"; compact?: boolean }) {
   const valColor =
     tone === "red" ? "text-[#b23a4c]" :
     tone === "green" ? "text-[#0f8a5f]" :
     tone === "amber" ? "text-[#a06a00]" :
     "text-foreground";
   return (
-    <div className="rounded-md border border-border bg-card shadow-sm px-3 py-2 flex items-center gap-2 sm:gap-3 min-w-0">
+    <div className="rounded-md border border-border bg-card shadow-sm px-2 sm:px-3 py-2 flex items-start gap-2 sm:gap-3 min-w-0">
       <span
-        className="inline-flex items-center justify-center rounded bg-[#1f6feb] text-white text-[11px] font-bold w-6 h-6 shrink-0"
+        className="inline-flex items-center justify-center rounded bg-[#1f6feb] text-white text-[11px] font-bold w-6 h-6 shrink-0 mt-0.5"
         title={`Peso ${peso}`}
       >
         {peso}
       </span>
       <div className="min-w-0 flex-1">
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{nome}</div>
-        <div className={cn("font-semibold tabular-nums truncate", compact ? "text-sm" : "text-xl", valColor)}>
+        <div className={cn("font-semibold tabular-nums truncate leading-tight", compact ? "text-sm" : "text-xl", valColor)}>
           {valor}
         </div>
+        {subvalor && (
+          <div className="text-[11px] text-muted-foreground truncate leading-tight">{subvalor}</div>
+        )}
         {detalhe && !compact && (
           <div className="text-[11px] text-muted-foreground truncate">{detalhe}</div>
         )}
@@ -1005,6 +1008,7 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
       <IndicadorCard
         nome="Lucratividade" peso={7}
         valor={(lucratividade * 100).toFixed(2) + "%"}
+        subvalor={money(R.llAcum)}
         detalhe={`ROE — LL acum. ${money(R.llAcum)}`}
         tone={lucratividade < 0 ? "red" : lucratividade >= META_ROE ? "green" : "amber"}
         compact={compact}
@@ -1012,6 +1016,7 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
       <IndicadorCard
         nome="Crescimento do PL" peso={6}
         valor={(crescPL * 100).toFixed(2) + "%"}
+        subvalor={money(R.pl)}
         detalhe={`PL final ${money(R.pl)}`}
         tone={crescPL < 0 ? "red" : crescPL > 0 ? "green" : undefined}
         compact={compact}
