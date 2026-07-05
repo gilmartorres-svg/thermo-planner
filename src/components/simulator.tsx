@@ -67,8 +67,9 @@ export function NumCell({
   return (
     <input
       type="number"
+      inputMode="decimal"
       className={cn(
-        "w-full h-8 px-2 py-1 text-right text-sm bg-transparent border border-transparent rounded",
+        "w-full min-w-[64px] h-10 sm:h-8 px-2 py-1 text-right text-sm bg-transparent border border-transparent rounded",
         "focus:border-primary focus:bg-background focus:outline-none",
         "hover:border-border transition-colors",
         disabled && "opacity-60 cursor-not-allowed bg-muted/40",
@@ -108,8 +109,8 @@ export function SectionCard({
 
 export function Zebra({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-auto rounded border border-border">
-      <table className="w-full text-sm [&_th]:bg-[#e6efef] [&_th]:text-foreground [&_th]:font-semibold [&_th]:text-left [&_th]:px-3 [&_th]:py-2 [&_td]:px-3 [&_td]:py-1.5 [&_td]:border-t [&_td]:border-border [&_tbody_tr:nth-child(even)]:bg-muted/40">
+    <div className="overflow-x-auto rounded border border-border -mx-1 sm:mx-0">
+      <table className="w-full min-w-max text-xs sm:text-sm [&_th]:bg-[#e6efef] [&_th]:text-foreground [&_th]:font-semibold [&_th]:text-left [&_th]:px-3 [&_th]:py-2 [&_th]:whitespace-nowrap [&_td]:px-3 [&_td]:py-1.5 [&_td]:border-t [&_td]:border-border [&_td]:whitespace-nowrap [&_tbody_tr:nth-child(even)]:bg-muted/40 [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-10 [&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:bg-card [&_tbody_tr:nth-child(even)_td:first-child]:bg-[#eef1f1]">
         {children}
       </table>
     </div>
@@ -137,7 +138,7 @@ export function TelaEstrategia({ S, R, setPer }: SimCtx) {
   return (
     <div className="space-y-4">
       <SectionCard title="Capacidade vs. Produção" icon="📊">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -197,7 +198,7 @@ export function TelaProducao({ S, R, setPer }: SimCtx) {
   return (
     <div className="space-y-4">
       <SectionCard title="Capacidade vs. Produção" icon="⚙️">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -257,7 +258,7 @@ export function TelaProducao({ S, R, setPer }: SimCtx) {
 export function TelaMarketing({ S, R, setPer, setPerReg, setScalar }: SimCtx) {
   return (
     <Tabs defaultValue="previsao" className="w-full">
-      <TabsList className="bg-muted">
+      <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="previsao">Previsão</TabsTrigger>
         <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
         <TabsTrigger value="propaganda">Propaganda</TabsTrigger>
@@ -300,7 +301,7 @@ function MktPrevisao({
   return (
     <div className="space-y-4">
       <SectionCard title="Previsão de Vendas por Região" icon="📈">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -373,7 +374,7 @@ function MktVendedores({
   return (
     <div className="space-y-4">
       <SectionCard title="Alocação de Vendedores" icon="🧑‍💼">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -503,7 +504,7 @@ function MktPreco({
             </select>
           </div>
         }>
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -560,7 +561,7 @@ function MktPD({ S, setPer }: { S: EstadoPlano; setPer: SimCtx["setPer"] }) {
   return (
     <div className="space-y-4">
       <SectionCard title="Investimento em P&D" icon="🔬">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -617,7 +618,7 @@ function MktPD({ S, setPer }: { S: EstadoPlano; setPer: SimCtx["setPer"] }) {
 export function TelaPessoas({ S, R, setPer }: SimCtx) {
   return (
     <Tabs defaultValue="op" className="w-full">
-      <TabsList className="bg-muted">
+      <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="op">Operacional</TabsTrigger>
         <TabsTrigger value="cm">Comercial</TabsTrigger>
       </TabsList>
@@ -675,7 +676,7 @@ function GrupoRH({
   );
   return (
     <SectionCard title={titulo} icon={icon}>
-      <div className="h-56">
+      <div className="h-48 sm:h-56">
         <ResponsiveContainer>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -721,7 +722,7 @@ function GrupoRH({
 export function TelaFinancas({ S, setPer }: SimCtx) {
   return (
     <Tabs defaultValue="inv" className="w-full">
-      <TabsList className="bg-muted">
+      <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="inv">Investimentos</TabsTrigger>
         <TabsTrigger value="fin">Financiamentos</TabsTrigger>
       </TabsList>
@@ -767,7 +768,7 @@ function FinChart({ series }: { series: Record<string, number[]> }) {
   const data = chartData(series, keys);
   const palette = [COLORS.r2, COLORS.r3, COLORS.r1, COLORS.total];
   return (
-    <div className="h-72">
+    <div className="h-52 sm:h-72">
       <ResponsiveContainer>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -870,31 +871,35 @@ export function TelaResultados({ R }: SimCtx) {
       </SectionCard>
 
       <SectionCard title="DRE — Período a Período" icon="📑">
-        <div className="overflow-auto rounded border border-border">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded border border-border -mx-1 sm:mx-0">
+          <table className="w-full min-w-max text-[11px] sm:text-xs">
             <thead>
               <tr className="bg-[#e6efef]">
-                <th className="text-left px-3 py-2 sticky left-0 bg-[#e6efef]">Conta</th>
+                <th className="text-left px-3 py-2 sticky left-0 z-10 bg-[#e6efef] whitespace-nowrap">Conta</th>
                 {R.dre.map((d) => (
-                  <th key={d.p} className="text-right px-3 py-2 whitespace-nowrap">P{d.p}</th>
+                  <th key={d.p} className="text-right px-3 py-2 whitespace-nowrap bg-[#e6efef]">P{d.p}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {linhas.map((l, i) => (
-                <tr key={l.nome} className={cn(i % 2 && "bg-muted/40", l.bold && "font-semibold")}>
-                  <td className="px-3 py-1.5 border-t border-border sticky left-0 bg-inherit">{l.nome}</td>
-                  {R.dre.map((d) => {
-                    const v = l.get(d);
-                    return (
-                      <td key={d.p} className={cn(
-                        "px-3 py-1.5 text-right border-t border-border whitespace-nowrap",
-                        v < 0 && "text-[#b23a4c]",
-                      )}>{fmt2(v)}</td>
-                    );
-                  })}
-                </tr>
-              ))}
+              {linhas.map((l, i) => {
+                const rowBg = i % 2 ? "bg-[#eef1f1]" : "bg-card";
+                return (
+                  <tr key={l.nome} className={cn(l.bold && "font-semibold")}>
+                    <td className={cn("px-3 py-1.5 border-t border-border sticky left-0 z-10 whitespace-nowrap", rowBg)}>{l.nome}</td>
+                    {R.dre.map((d) => {
+                      const v = l.get(d);
+                      return (
+                        <td key={d.p} className={cn(
+                          "px-3 py-1.5 text-right border-t border-border whitespace-nowrap",
+                          rowBg,
+                          v < 0 && "text-[#b23a4c]",
+                        )}>{fmt2(v)}</td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
