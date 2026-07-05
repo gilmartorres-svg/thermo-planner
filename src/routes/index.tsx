@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-  useSimulator,
+  useSimulator, IndicadoresBar,
   TelaEstrategia, TelaProducao, TelaMarketing,
   TelaPessoas, TelaFinancas, TelaResultados,
 } from "@/components/simulator";
