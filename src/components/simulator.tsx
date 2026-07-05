@@ -138,7 +138,7 @@ export function TelaEstrategia({ S, R, setPer }: SimCtx) {
   return (
     <div className="space-y-4">
       <SectionCard title="Capacidade vs. Produção" icon="📊">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -198,7 +198,7 @@ export function TelaProducao({ S, R, setPer }: SimCtx) {
   return (
     <div className="space-y-4">
       <SectionCard title="Capacidade vs. Produção" icon="⚙️">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -301,7 +301,7 @@ function MktPrevisao({
   return (
     <div className="space-y-4">
       <SectionCard title="Previsão de Vendas por Região" icon="📈">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -374,7 +374,7 @@ function MktVendedores({
   return (
     <div className="space-y-4">
       <SectionCard title="Alocação de Vendedores" icon="🧑‍💼">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -504,7 +504,7 @@ function MktPreco({
             </select>
           </div>
         }>
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -561,7 +561,7 @@ function MktPD({ S, setPer }: { S: EstadoPlano; setPer: SimCtx["setPer"] }) {
   return (
     <div className="space-y-4">
       <SectionCard title="Investimento em P&D" icon="🔬">
-        <div className="h-72">
+        <div className="h-52 sm:h-72">
           <ResponsiveContainer>
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -676,7 +676,7 @@ function GrupoRH({
   );
   return (
     <SectionCard title={titulo} icon={icon}>
-      <div className="h-56">
+      <div className="h-48 sm:h-56">
         <ResponsiveContainer>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -768,7 +768,7 @@ function FinChart({ series }: { series: Record<string, number[]> }) {
   const data = chartData(series, keys);
   const palette = [COLORS.r2, COLORS.r3, COLORS.r1, COLORS.total];
   return (
-    <div className="h-72">
+    <div className="h-52 sm:h-72">
       <ResponsiveContainer>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
