@@ -849,6 +849,10 @@ export function TelaResultados({ R }: SimCtx) {
 
   return (
     <div className="space-y-4">
+      <SectionCard title="Indicadores Oficiais — SES" icon="🏅">
+        <IndicadoresBar R={R} compact={false} />
+      </SectionCard>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KPI label="Lucro líquido acumulado" value={money(R.llAcum)} color={R.llAcum >= 0 ? "green" : "red"} />
         <KPI label="Patrimônio líquido" value={money(R.pl)} />
