@@ -972,9 +972,9 @@ function IndicadorCard({
     tone === "amber" ? "text-[#a06a00]" :
     "text-foreground";
   return (
-    <div className="rounded-md border border-border bg-card shadow-sm px-2 sm:px-3 py-2 flex items-start gap-2 sm:gap-3 min-w-0">
+    <div className="rounded-md border border-border bg-card shadow-sm px-1.5 sm:px-3 py-2 flex items-start gap-1.5 sm:gap-3 min-w-0">
       <span
-        className="inline-flex items-center justify-center rounded bg-[#1f6feb] text-white text-[11px] font-bold w-6 h-6 shrink-0 mt-0.5"
+        className="inline-flex items-center justify-center rounded bg-[#1f6feb] text-white text-[10px] sm:text-[11px] font-bold w-5 h-5 sm:w-6 sm:h-6 shrink-0 mt-0.5"
         title={`Peso ${peso}`}
       >
         {peso}
@@ -985,7 +985,7 @@ function IndicadorCard({
           {valor}
         </div>
         {subvalor && (
-          <div className="text-[11px] text-muted-foreground truncate leading-tight">{subvalor}</div>
+          <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate leading-tight">{subvalor}</div>
         )}
         {detalhe && !compact && (
           <div className="text-[11px] text-muted-foreground truncate">{detalhe}</div>
