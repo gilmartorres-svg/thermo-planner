@@ -67,8 +67,9 @@ export function NumCell({
   return (
     <input
       type="number"
+      inputMode="decimal"
       className={cn(
-        "w-full h-8 px-2 py-1 text-right text-sm bg-transparent border border-transparent rounded",
+        "w-full min-w-[64px] h-10 sm:h-8 px-2 py-1 text-right text-sm bg-transparent border border-transparent rounded",
         "focus:border-primary focus:bg-background focus:outline-none",
         "hover:border-border transition-colors",
         disabled && "opacity-60 cursor-not-allowed bg-muted/40",
