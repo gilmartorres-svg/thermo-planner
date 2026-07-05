@@ -56,43 +56,7 @@ export function useSimulator(): SimCtx {
 }
 
 // ─── UI atoms ─────────────────────────────────────────────
-export function NumInput({
-  value, onChange, disabled, warn,
-}: { value: number; onChange: (v: number) => void; disabled?: boolean; warn?: boolean }) {
-  const [local, setLocal] = useState<string>(String(value ?? 0));
-  const commit = () => {
-    const n = Number(String(local).replace(",", ".")) || 0;
-    if (n !== value) onChange(n);
-    setLocal(String(n));
-  };
-  // Re-sync if external value changes
-  if (String(value) !== local && document.activeElement !== inputRef.current) {
-    // no-op guard, using inline effect below is more correct
-  }
-  return (
-    <input
-      ref={inputRef as never}
-      type="number"
-      className={cn(
-        "w-full h-8 px-2 py-1 text-right text-sm bg-transparent border border-transparent rounded",
-        "focus:border-primary focus:bg-background focus:outline-none",
-        "hover:border-border transition-colors",
-        disabled && "opacity-60 cursor-not-allowed",
-        warn && "bg-amber-50 border-amber-300 text-amber-900",
-      )}
-      value={local}
-      disabled={disabled}
-      onChange={(e) => setLocal(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
-      }}
-    />
-  );
-}
-// small hack: local ref for the input above
-import { useRef, useEffect } from "react";
-const inputRef = { current: null as HTMLInputElement | null };
+
 
 // A cleaner controlled numeric cell that syncs to external value
 export function NumCell({
