@@ -133,7 +133,7 @@ function chartData<K extends string>(
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 1 — ESTRATÉGIA
 // ═══════════════════════════════════════════════════════════════
-export function TelaEstrategia({ S, R, setPer }: SimCtx) {
+export function TelaEstrategia({ S, R, setPer, setScalar }: SimCtx) {
   const data = chartData({ Capacidade: R.cap, Produção: R.prod }, ["Capacidade", "Produção"]);
   return (
     <div className="space-y-4">
