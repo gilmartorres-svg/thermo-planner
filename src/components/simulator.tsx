@@ -171,7 +171,11 @@ export function TelaEstrategia({ S, R, setPer, setScalar }: SimCtx) {
                 <tr key={p}>
                   <td className="font-medium">P{p}</td>
                   <td className="text-muted-foreground">{situ}</td>
-                  <td className="text-right">{fmt0(p === 1 ? S.capIni : R.cap[p - 1] || 0)}</td>
+                  {p === 1 ? (
+                    <td className="w-40"><NumCell value={S.capIni} onCommit={(v) => setScalar("capIni", v)} /></td>
+                  ) : (
+                    <td className="text-right">{fmt0(R.cap[p - 1] || 0)}</td>
+                  )}
                   <td className="text-right font-medium">{fmt0(R.cap[p])}</td>
                   <td className="w-40">
                     {p < P ? (
