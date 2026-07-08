@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   useSimulator, IndicadoresBar,
   TelaEstrategia, TelaProducao, TelaMarketing,
   TelaPessoas, TelaFinancas, TelaResultados,
 } from "@/components/simulator";
+import { PlanosBar } from "@/components/planos-bar";
+import type { EstadoPlano } from "@/lib/engine";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   component: Simulador,
 });
 
@@ -25,6 +27,38 @@ const SECOES: Array<{ key: SecKey; label: string; icon: string }> = [
 function Simulador() {
   const ctx = useSimulator();
   const [sec, setSec] = useState<SecKey>("estrategia");
+
+  const [planoId, setPlanoId] = useState<string | null>(null);
+  const [planoNome, setPlanoNome] = useState<string | null>(null);
+  const baselineRef = useRef<string>(JSON.stringify(ctx.S));
+
+  // Recompute whenever S changes
+  const estadoAtualStr = useMemo(() => JSON.stringify(ctx.S), [ctx.S]);
+  const dirty = estadoAtualStr !== baselineRef.current;
+
+  useEffect(() => {
+    if (!planoId) baselineRef.current = JSON.stringify(ctx.S);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function onCarregar(id: string, nome: string, estado: EstadoPlano) {
+    ctx.setEstado(estado);
+    setPlanoId(id);
+    setPlanoNome(nome);
+    baselineRef.current = JSON.stringify(estado);
+  }
+  function onNovoPlano() {
+    ctx.resetar();
+    setPlanoId(null);
+    setPlanoNome(null);
+    baselineRef.current = JSON.stringify({ ...ctx.S });
+    // note: resetar sets state async; baseline will be re-synced on next save
+  }
+  function onSalvo(id: string, nome: string) {
+    setPlanoId(id);
+    setPlanoNome(nome);
+    baselineRef.current = estadoAtualStr;
+  }
 
   return (
     <div className="min-h-screen bg-[#f4f6f7] text-foreground flex">
@@ -53,16 +87,29 @@ function Simulador() {
           ))}
         </nav>
         <div className="px-5 py-3 border-t border-white/10 text-[11px] text-white/50 leading-relaxed">
-          Sessão em memória — recarregar restaura o plano-base.
+          Planos salvos ficam vinculados à sua conta.
         </div>
       </aside>
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile brand bar */}
-        <div className="md:hidden bg-[#0a4f4f] text-white px-4 py-2.5 flex items-baseline gap-2">
-          <span className="text-[10px] uppercase tracking-widest text-white/60">SES • FGV</span>
-          <span className="text-sm font-semibold">ThermoTech SA</span>
+        {/* Brand + planos bar */}
+        <div className="bg-[#0a4f4f] text-white px-4 md:px-6 py-2 flex items-center gap-3 flex-wrap">
+          <div className="flex items-baseline gap-2 md:hidden">
+            <span className="text-[10px] uppercase tracking-widest text-white/60">SES • FGV</span>
+            <span className="text-sm font-semibold">ThermoTech SA</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <PlanosBar
+              S={ctx.S}
+              planoId={planoId}
+              planoNome={planoNome}
+              dirty={dirty}
+              onCarregar={onCarregar}
+              onNovoPlano={onNovoPlano}
+              onSalvo={onSalvo}
+            />
+          </div>
         </div>
 
         <header className="bg-white border-b border-border px-4 md:px-6 py-3 md:flex md:items-center md:justify-between">

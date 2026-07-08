@@ -30,6 +30,8 @@ export interface SimCtx {
   setScalar: (key: keyof EstadoPlano, v: number | string) => void;
   setPer: (key: keyof EstadoPlano, p: number, v: number) => void;
   setPerReg: (key: keyof EstadoPlano, p: number, r: number, v: number) => void;
+  setEstado: (novo: EstadoPlano) => void;
+  resetar: () => void;
 }
 
 export function useSimulator(): SimCtx {
@@ -52,8 +54,11 @@ export function useSimulator(): SimCtx {
       return { ...prev, [k]: mat } as EstadoPlano;
     });
   }, []);
-  return { S, R, setScalar, setPer, setPerReg };
+  const setEstado = useCallback((novo: EstadoPlano) => setS(novo), []);
+  const resetar = useCallback(() => setS(planoInicial()), []);
+  return { S, R, setScalar, setPer, setPerReg, setEstado, resetar };
 }
+
 
 // ─── UI atoms ─────────────────────────────────────────────
 
