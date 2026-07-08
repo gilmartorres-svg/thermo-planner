@@ -7,7 +7,7 @@ import {
   TelaPessoas, TelaFinancas, TelaResultados,
 } from "@/components/simulator";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   component: Simulador,
 });
 
