@@ -8,6 +8,8 @@ import {
   type EstadoPlano, type ResultadoSimulacao, type FormaPagamento,
 } from "@/lib/engine";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ─── formatters ─────────────────────────────────────────────
