@@ -861,6 +861,14 @@ export function TelaResultados({ R }: SimCtx) {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setOpenRel(true)} className="bg-[#1B3A4B] hover:bg-[#152d3a] text-white">
+          📄 Visualizar Relatório
+        </Button>
+      </div>
+
+      <RelatorioDialog open={openRel} onOpenChange={setOpenRel} R={R} linhas={linhas} pctMeta={pctMeta} />
+
       <SectionCard title="Indicadores Oficiais — SES" icon="🏅">
         <IndicadoresBar R={R} compact={false} />
       </SectionCard>
