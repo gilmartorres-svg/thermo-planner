@@ -8,6 +8,8 @@ import {
   type EstadoPlano, type ResultadoSimulacao, type FormaPagamento,
 } from "@/lib/engine";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ─── formatters ─────────────────────────────────────────────
@@ -831,6 +833,7 @@ function FinTable({
 // SCREEN 6 — RESULTADOS
 // ═══════════════════════════════════════════════════════════════
 export function TelaResultados({ R }: SimCtx) {
+  const [openRel, setOpenRel] = useState(false);
   const pctMeta = Math.min(100, (R.llAcum / META_LL) * 100);
   const linhas: Array<{ nome: string; get: (d: (typeof R.dre)[number]) => number; neg?: boolean; bold?: boolean }> = [
     { nome: "Receita bruta", get: (d) => d.receita, bold: true },
@@ -858,6 +861,14 @@ export function TelaResultados({ R }: SimCtx) {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setOpenRel(true)} className="bg-[#1B3A4B] hover:bg-[#152d3a] text-white">
+          📄 Visualizar Relatório
+        </Button>
+      </div>
+
+      <RelatorioDialog open={openRel} onOpenChange={setOpenRel} R={R} linhas={linhas} pctMeta={pctMeta} />
+
       <SectionCard title="Indicadores Oficiais — SES" icon="🏅">
         <IndicadoresBar R={R} compact={false} />
       </SectionCard>
@@ -1030,6 +1041,183 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
         tone={crescPL < 0 ? "red" : crescPL > 0 ? "green" : undefined}
         compact={compact}
       />
+    </div>
+  );
+}
+
+function RelatorioDialog({
+  open, onOpenChange, R, linhas, pctMeta,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  R: ResultadoSimulacao;
+  linhas: Array<{ nome: string; get: (d: (typeof R.dre)[number]) => number; neg?: boolean; bold?: boolean }>;
+  pctMeta: number;
+}) {
+  const { faturamento, lucratividade, crescPL } = calcIndicadores(R);
+  const agora = new Date().toLocaleString("pt-BR");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 print-report bg-[#FAFAFA] text-[#2D2D2D]">
+        <style>{`
+          @media print {
+            body * { visibility: hidden !important; }
+            .print-report, .print-report * { visibility: visible !important; }
+            .print-report {
+              position: fixed !important;
+              inset: 0 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              max-height: none !important;
+              overflow: visible !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #fff !important;
+              color: #000 !important;
+              box-shadow: none !important;
+              border: none !important;
+              transform: none !important;
+            }
+            .print-report .no-print { display: none !important; }
+            .print-report section { break-inside: avoid; page-break-inside: avoid; }
+            .print-report table { break-inside: auto; }
+            .print-report thead { display: table-header-group; }
+            @page { margin: 12mm; }
+          }
+        `}</style>
+
+        <div className="px-8 pt-8 pb-6">
+          <DialogHeader className="mb-0">
+            <div className="border-b-2 border-[#1B3A4B] pb-4">
+              <DialogTitle className="text-2xl font-semibold text-[#1B3A4B] tracking-tight">
+                ThermoTech SA — Relatório de Resultados
+              </DialogTitle>
+              <div className="text-xs text-[#2D2D2D]/70 mt-1">Gerado em {agora}</div>
+            </div>
+          </DialogHeader>
+
+          <section className="mt-8">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+              Indicadores Oficiais
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              <RelInd nome="Faturamento" peso={4} valor={money(faturamento)} sub="Receita total (8 períodos)" />
+              <RelInd nome="Lucratividade" peso={7} valor={(lucratividade * 100).toFixed(2) + "%"} sub={`LL acum. ${money(R.llAcum)}`} />
+              <RelInd nome="Crescimento do PL" peso={6} valor={(crescPL * 100).toFixed(2) + "%"} sub={`PL final ${money(R.pl)}`} />
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+              KPIs
+            </h2>
+            <div className="grid grid-cols-4 gap-4">
+              <RelKPI label="LL acumulado" value={money(R.llAcum)} />
+              <RelKPI label="Patrimônio líquido" value={money(R.pl)} />
+              <RelKPI label="Caixa mínimo" value={money(R.caixaMin)} />
+              <RelKPI label="Alertas" value={String(R.alertas.length)} />
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+              Meta de ROE — {(META_ROE * 100).toFixed(2)}%
+            </h2>
+            <div className="flex justify-between text-sm mb-2">
+              <span>ROE projetado: <strong>{(R.roe * 100).toFixed(2)}%</strong></span>
+              <span className="text-[#2D2D2D]/70">Meta: {money(META_LL)}</span>
+            </div>
+            <div className="h-3 rounded bg-[#e6e6e6] overflow-hidden border border-[#d0d0d0]">
+              <div className="h-full bg-[#1B3A4B]" style={{ width: pctMeta + "%" }} />
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+              DRE — Período a Período
+            </h2>
+            <div className="overflow-x-auto border border-[#d0d0d0]">
+              <table className="w-full min-w-max text-xs">
+                <thead>
+                  <tr className="bg-[#1B3A4B] text-white">
+                    <th className="text-left px-3 py-2 whitespace-nowrap">Conta</th>
+                    {R.dre.map((d) => (
+                      <th key={d.p} className="text-right px-3 py-2 whitespace-nowrap">P{d.p}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((l, i) => (
+                    <tr key={l.nome} className={cn(l.bold && "font-semibold", i % 2 ? "bg-[#f2f2f2]" : "bg-white")}>
+                      <td className="px-3 py-1.5 whitespace-nowrap">{l.nome}</td>
+                      {R.dre.map((d) => {
+                        const v = l.get(d);
+                        return (
+                          <td key={d.p} className={cn("px-3 py-1.5 text-right whitespace-nowrap tabular-nums", v < 0 && "text-[#b23a4c]")}>
+                            {fmt2(v)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="mt-8 mb-4">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+              Alertas de Consistência
+            </h2>
+            {R.alertas.length === 0 ? (
+              <p className="text-sm text-[#2D2D2D]/70">Nenhum alerta — plano consistente.</p>
+            ) : (
+              <ul className="space-y-2">
+                {R.alertas.map((a, i) => (
+                  <li
+                    key={i}
+                    className={cn(
+                      "text-sm px-3 py-2 border-l-4",
+                      a.aviso ? "border-[#D97706] bg-[#fff7ed] text-[#7c2d12]" : "border-[#b23a4c] bg-[#fef2f2] text-[#7a1f2d]",
+                    )}
+                  >
+                    {a.texto}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <DialogFooter className="no-print px-8 py-4 border-t border-[#d0d0d0] bg-white">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+          <Button onClick={() => window.print()} className="bg-[#1B3A4B] hover:bg-[#152d3a] text-white">
+            🖨️ Imprimir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RelInd({ nome, peso, valor, sub }: { nome: string; peso: number; valor: string; sub: string }) {
+  return (
+    <div className="border border-[#d0d0d0] bg-white p-4">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center justify-center bg-[#1B3A4B] text-white text-[11px] font-bold w-6 h-6">{peso}</span>
+        <div className="text-[11px] uppercase tracking-wide text-[#2D2D2D]/70">{nome}</div>
+      </div>
+      <div className="mt-2 text-2xl font-semibold tabular-nums text-[#1B3A4B]">{valor}</div>
+      <div className="text-[11px] text-[#2D2D2D]/70 mt-1">{sub}</div>
+    </div>
+  );
+}
+
+function RelKPI({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-[#d0d0d0] bg-white p-4">
+      <div className="text-[11px] uppercase tracking-wide text-[#2D2D2D]/70">{label}</div>
+      <div className="mt-1 text-xl font-semibold tabular-nums text-[#1B3A4B]">{value}</div>
     </div>
   );
 }
