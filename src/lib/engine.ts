@@ -10,6 +10,7 @@ const ARM_MP = 3, ARM_PA = 4.85, ADMIN = 52000, IR = 0.30, CAPITAL = 3_000_000;
 export const META_ROE = 0.5529;
 export const META_LL = CAPITAL * META_ROE;
 const MODULO = 210; // $/unidade de capacidade
+const DEPREC = 0.025;
 export const TETO_PROP = 20649.76; // 1% do faturamento médio potencial
 
 const OP = { c: 3000, t: 700, d: 5300, sal: 5280 };
