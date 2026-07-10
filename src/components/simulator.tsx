@@ -1057,19 +1057,48 @@ function RelatorioDialog({
 }) {
   const { faturamento, lucratividade, crescPL } = calcIndicadores(R);
   const agora = new Date().toLocaleString("pt-BR");
+
+  const dadosReceita = R.dre.map((d) => ({ periodo: `P${d.p}`, receita: d.receita }));
+  const dadosLL = R.dre.map((d) => ({ periodo: `P${d.p}`, ll: d.ll }));
+
+  const handlePrint = useCallback(() => {
+    document.documentElement.classList.add("printing-report");
+    const cleanup = () => {
+      document.documentElement.classList.remove("printing-report");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    setTimeout(() => window.print(), 50);
+  }, []);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 print-report bg-[#FAFAFA] text-[#2D2D2D]">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 print-report bg-[#FAFAFA] text-[#2D2D2D]">
         <style>{`
           @media print {
-            body * { visibility: hidden !important; }
-            .print-report, .print-report * { visibility: visible !important; }
-            .print-report {
-              position: fixed !important;
-              inset: 0 !important;
+            @page { size: A4 landscape; margin: 10mm; }
+            html.printing-report, html.printing-report body {
+              background: #fff !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            html.printing-report body > *:not(script):not(style) { display: none !important; }
+            html.printing-report [data-radix-portal],
+            html.printing-report [data-radix-popper-content-wrapper],
+            html.printing-report body [role="dialog"] { display: block !important; }
+            html.printing-report [data-radix-dialog-overlay],
+            html.printing-report [data-state="open"][class*="overlay" i] {
+              display: none !important;
+              background: transparent !important;
+            }
+            html.printing-report .print-report {
+              position: static !important;
+              inset: auto !important;
+              transform: none !important;
               width: 100% !important;
               max-width: 100% !important;
               max-height: none !important;
+              height: auto !important;
               overflow: visible !important;
               margin: 0 !important;
               padding: 0 !important;
@@ -1077,13 +1106,44 @@ function RelatorioDialog({
               color: #000 !important;
               box-shadow: none !important;
               border: none !important;
-              transform: none !important;
+              border-radius: 0 !important;
+              display: block !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            .print-report .no-print { display: none !important; }
-            .print-report section { break-inside: avoid; page-break-inside: avoid; }
-            .print-report table { break-inside: auto; }
-            .print-report thead { display: table-header-group; }
-            @page { margin: 12mm; }
+            html.printing-report .print-report * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html.printing-report .no-print { display: none !important; }
+            html.printing-report .print-report section {
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            html.printing-report .print-report .dre-print { font-size: 9px !important; }
+            html.printing-report .print-report .dre-print th,
+            html.printing-report .print-report .dre-print td {
+              padding: 3px 6px !important;
+            }
+            html.printing-report .print-report .dre-print thead tr {
+              background: #1B3A4B !important;
+              color: #fff !important;
+            }
+            html.printing-report .print-report .dre-print thead th { color: #fff !important; }
+            html.printing-report .print-report .dre-print tr.subtotal {
+              background: #e8eff3 !important;
+            }
+            html.printing-report .print-report .meta-bar-fill {
+              background: #1B3A4B !important;
+            }
+            html.printing-report .print-report table {
+              break-inside: auto;
+              width: 100% !important;
+            }
+            html.printing-report .print-report thead { display: table-header-group; }
+            html.printing-report .print-report .dre-scroll {
+              overflow: visible !important;
+            }
           }
         `}</style>
 
@@ -1098,7 +1158,7 @@ function RelatorioDialog({
           </DialogHeader>
 
           <section className="mt-8">
-            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
               Indicadores Oficiais
             </h2>
             <div className="grid grid-cols-3 gap-4">
@@ -1109,7 +1169,7 @@ function RelatorioDialog({
           </section>
 
           <section className="mt-8">
-            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
               KPIs
             </h2>
             <div className="grid grid-cols-4 gap-4">
@@ -1121,7 +1181,7 @@ function RelatorioDialog({
           </section>
 
           <section className="mt-8">
-            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
               Meta de ROE — {(META_ROE * 100).toFixed(2)}%
             </h2>
             <div className="flex justify-between text-sm mb-2">
@@ -1129,16 +1189,45 @@ function RelatorioDialog({
               <span className="text-[#2D2D2D]/70">Meta: {money(META_LL)}</span>
             </div>
             <div className="h-3 rounded bg-[#e6e6e6] overflow-hidden border border-[#d0d0d0]">
-              <div className="h-full bg-[#1B3A4B]" style={{ width: pctMeta + "%" }} />
+              <div className="h-full bg-[#1B3A4B] meta-bar-fill" style={{ width: pctMeta + "%" }} />
             </div>
           </section>
 
           <section className="mt-8">
-            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
+              Evolução Financeira
+            </h2>
+            <div className="flex flex-col gap-6 items-center">
+              <div>
+                <div className="text-xs font-semibold text-[#1B3A4B] mb-1">Receita Bruta por Período</div>
+                <BarChart width={700} height={250} data={dadosReceita} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#d0d0d0" />
+                  <XAxis dataKey="periodo" stroke="#2D2D2D" fontSize={11} />
+                  <YAxis stroke="#2D2D2D" fontSize={11} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
+                  <Tooltip formatter={(v: number) => money(v)} />
+                  <Bar dataKey="receita" fill="#1B3A4B" name="Receita" />
+                </BarChart>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-[#1B3A4B] mb-1">Lucro Líquido por Período</div>
+                <LineChart width={700} height={250} data={dadosLL} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#d0d0d0" />
+                  <XAxis dataKey="periodo" stroke="#2D2D2D" fontSize={11} />
+                  <YAxis stroke="#2D2D2D" fontSize={11} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
+                  <Tooltip formatter={(v: number) => money(v)} />
+                  <ReferenceLine y={0} stroke="#b23a4c" strokeDasharray="3 3" />
+                  <Line type="monotone" dataKey="ll" stroke="#2dd4a7" strokeWidth={2} dot={{ r: 3 }} name="Lucro líquido" />
+                </LineChart>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
               DRE — Período a Período
             </h2>
-            <div className="overflow-x-auto border border-[#d0d0d0]">
-              <table className="w-full min-w-max text-xs">
+            <div className="dre-scroll overflow-x-auto border border-[#d0d0d0]">
+              <table className="dre-print w-full text-xs">
                 <thead>
                   <tr className="bg-[#1B3A4B] text-white">
                     <th className="text-left px-3 py-2 whitespace-nowrap">Conta</th>
@@ -1149,7 +1238,13 @@ function RelatorioDialog({
                 </thead>
                 <tbody>
                   {linhas.map((l, i) => (
-                    <tr key={l.nome} className={cn(l.bold && "font-semibold", i % 2 ? "bg-[#f2f2f2]" : "bg-white")}>
+                    <tr
+                      key={l.nome}
+                      className={cn(
+                        l.bold && "font-semibold subtotal",
+                        l.bold ? "bg-[#e8eff3]" : i % 2 ? "bg-[#f2f2f2]" : "bg-white",
+                      )}
+                    >
                       <td className="px-3 py-1.5 whitespace-nowrap">{l.nome}</td>
                       {R.dre.map((d) => {
                         const v = l.get(d);
@@ -1167,7 +1262,7 @@ function RelatorioDialog({
           </section>
 
           <section className="mt-8 mb-4">
-            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
               Alertas de Consistência
             </h2>
             {R.alertas.length === 0 ? (
@@ -1192,7 +1287,7 @@ function RelatorioDialog({
 
         <DialogFooter className="no-print px-8 py-4 border-t border-[#d0d0d0] bg-white">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
-          <Button onClick={() => window.print()} className="bg-[#1B3A4B] hover:bg-[#152d3a] text-white">
+          <Button onClick={handlePrint} className="bg-[#1B3A4B] hover:bg-[#152d3a] text-white">
             🖨️ Imprimir
           </Button>
         </DialogFooter>
@@ -1200,6 +1295,7 @@ function RelatorioDialog({
     </Dialog>
   );
 }
+
 
 function RelInd({ nome, peso, valor, sub }: { nome: string; peso: number; valor: string; sub: string }) {
   return (
