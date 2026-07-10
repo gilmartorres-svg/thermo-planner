@@ -869,7 +869,7 @@ export function TelaResultados({ S, R }: SimCtx) {
         </Button>
       </div>
 
-      <RelatorioDialog open={openRel} onOpenChange={setOpenRel} R={R} linhas={linhas} pctMeta={pctMeta} />
+      <RelatorioDialog open={openRel} onOpenChange={setOpenRel} S={S} R={R} linhas={linhas} pctMeta={pctMeta} />
 
       <SectionCard title="Indicadores Oficiais — SES" icon="🏅">
         <IndicadoresBar R={R} compact={false} />
