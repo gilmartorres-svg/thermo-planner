@@ -1082,15 +1082,16 @@ function RelatorioDialog({
               margin: 0 !important;
               padding: 0 !important;
             }
-            html.printing-report body > *:not(script):not(style) { display: none !important; }
-            html.printing-report [data-radix-portal],
-            html.printing-report [data-radix-popper-content-wrapper],
-            html.printing-report body [role="dialog"] { display: block !important; }
+            html.printing-report body { visibility: hidden !important; }
+            html.printing-report .print-report,
+            html.printing-report .print-report * { visibility: visible !important; }
             html.printing-report [data-radix-dialog-overlay],
-            html.printing-report [data-state="open"][class*="overlay" i] {
+            html.printing-report [data-slot="dialog-overlay"] {
               display: none !important;
+              visibility: hidden !important;
               background: transparent !important;
             }
+
             html.printing-report .print-report {
               position: static !important;
               inset: auto !important;
