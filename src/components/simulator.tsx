@@ -1241,10 +1241,11 @@ function gerarSugestoes(S: EstadoPlano, R: ResultadoSimulacao): Sugestao[] {
 
 function RelatorioDialog({
 
-  open, onOpenChange, R, linhas, pctMeta,
+  open, onOpenChange, S, R, linhas, pctMeta,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  S: EstadoPlano;
   R: ResultadoSimulacao;
   linhas: Array<{ nome: string; get: (d: (typeof R.dre)[number]) => number; neg?: boolean; bold?: boolean }>;
   pctMeta: number;
