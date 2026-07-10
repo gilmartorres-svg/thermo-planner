@@ -1,4 +1,5 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
@@ -1046,7 +1047,79 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
   );
 }
 
+interface Sugestao { area: string; problema: string; acao: string; oficial?: boolean }
+
+function gerarSugestoes(R: ResultadoSimulacao): Sugestao[] {
+  const out: Sugestao[] = [];
+  const { crescPL } = calcIndicadores(R);
+
+  if (R.roe < META_ROE) {
+    out.push({
+      area: "Lucratividade",
+      oficial: true,
+      problema: `ROE projetado (${(R.roe * 100).toFixed(2)}%) abaixo da meta de ${(META_ROE * 100).toFixed(2)}%.`,
+      acao: "Revise preços por região buscando margem, corte custos de ociosidade de MOD e verifique se a propaganda de cada região ainda está abaixo do teto de saturação — acima dele, cada real vira desperdício.",
+    });
+  }
+
+  const perOcios = R.dre.filter((d) => d.ocios > 0).map((d) => `P${d.p}`);
+  if (perOcios.length > 0) {
+    out.push({
+      area: "Pessoas",
+      problema: `Ociosidade de MOD detectada em ${perOcios.join(", ")}.`,
+      acao: "Alinhe contratações e demissões de operários à programação de produção de cada período; MOD ociosa continua pesando na folha sem gerar receita. Ajuste o quadro para manter a operação enxuta e sustentável nos próximos ciclos.",
+    });
+  }
+
+  if (R.caixaMin <= 0) {
+    out.push({
+      area: "Caixa",
+      problema: `Caixa mínimo do horizonte em ${money(R.caixaMin)} — empréstimo automático acionado.`,
+      acao: "O empréstimo automático a 8% a.p. é a linha de crédito mais cara do jogo. Programe com antecedência um Empréstimo LP (4,3%) ou CP (4,9%) nos períodos deficitários para reduzir a despesa financeira e sustentar a operação.",
+    });
+  }
+
+  const perLLNeg = R.dre.filter((d) => d.ll < 0).map((d) => `P${d.p}`);
+  if (perLLNeg.length > 0) {
+    out.push({
+      area: "Resultado",
+      problema: `Lucro líquido negativo em ${perLLNeg.join(", ")}.`,
+      acao: "Esses períodos são os que mais pressionam o PL. Combine ajustes de preço, redução de custos variáveis e revisão de despesas comerciais para trazer o LL desses períodos ao positivo, mantendo o crescimento contínuo da empresa.",
+    });
+  }
+
+  const pdTotal = R.dre.reduce((s, d) => s + d.pd, 0);
+  if (pdTotal < 102000) {
+    out.push({
+      area: "P&D",
+      problema: `Investimento acumulado em P&D de ${money(pdTotal)} — abaixo do ponto de saturação (${money(102000)}).`,
+      acao: "Complete o investimento acumulado até $102.000,00 no horizonte para atingir a qualidade percebida máxima e sustentar o poder de precificação da ThermoTech nos períodos seguintes.",
+    });
+  }
+
+  if (crescPL < 0) {
+    out.push({
+      area: "Crescimento do PL",
+      oficial: true,
+      problema: `Crescimento do PL de ${(crescPL * 100).toFixed(2)}% — o patrimônio está encolhendo.`,
+      acao: "O PL cresce via lucro líquido retido. Priorize as ações de lucratividade (preço, custo, propaganda) para reverter o LL agregado e recompor o patrimônio, preservando a saúde financeira da empresa nos ciclos seguintes.",
+    });
+  }
+
+  const criticos = R.alertas.filter((a) => !a.aviso).length;
+  if (criticos > 0) {
+    out.push({
+      area: "Consistência",
+      problema: `${criticos} alerta(s) crítico(s) na simulação.`,
+      acao: "Resolva os alertas críticos antes de enviar as decisões no SES — eles indicam inconsistências que podem invalidar o plano ou gerar penalidade nos indicadores.",
+    });
+  }
+
+  return out;
+}
+
 function RelatorioDialog({
+
   open, onOpenChange, R, linhas, pctMeta,
 }: {
   open: boolean;
@@ -1061,94 +1134,73 @@ function RelatorioDialog({
   const dadosReceita = R.dre.map((d) => ({ periodo: `P${d.p}`, receita: d.receita }));
   const dadosLL = R.dre.map((d) => ({ periodo: `P${d.p}`, ll: d.ll }));
 
+  const reportRef = useRef<HTMLDivElement>(null);
+
   const handlePrint = useCallback(() => {
-    document.documentElement.classList.add("printing-report");
-    const cleanup = () => {
-      document.documentElement.classList.remove("printing-report");
-      window.removeEventListener("afterprint", cleanup);
+    const node = reportRef.current;
+    if (!node) return;
+    const w = window.open("", "_blank");
+    if (!w) {
+      toast.error("Habilite pop-ups para imprimir o relatório.");
+      return;
+    }
+    const headAssets = Array.from(
+      document.head.querySelectorAll('link[rel="stylesheet"], style'),
+    )
+      .map((el) => el.outerHTML)
+      .join("\n");
+    const printCss = `
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        html, body {
+          background: #fff !important;
+          margin: 0; padding: 0;
+          color: #2D2D2D;
+        }
+        *, *::before, *::after {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .report-root {
+          max-width: 100%;
+          background: #fff;
+          padding: 12mm 10mm;
+        }
+        section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 18px; }
+        table { break-inside: auto; width: 100%; border-collapse: collapse; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; page-break-inside: avoid; }
+        .dre-print { font-size: 9px !important; }
+        .dre-print th, .dre-print td { padding: 3px 6px !important; }
+        .dre-scroll { overflow: visible !important; }
+      </style>
+    `;
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório ThermoTech SA</title>${headAssets}${printCss}</head><body><div class="report-root">${node.innerHTML}</div></body></html>`;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    const doPrint = () => {
+      w.focus();
+      w.print();
     };
-    window.addEventListener("afterprint", cleanup);
-    setTimeout(() => window.print(), 50);
+    const onAfter = () => {
+      w.close();
+    };
+    w.addEventListener("afterprint", onAfter);
+    if (w.document.readyState === "complete") {
+      setTimeout(doPrint, 150);
+    } else {
+      w.addEventListener("load", () => setTimeout(doPrint, 150));
+    }
   }, []);
+
+  const sugestoes = gerarSugestoes(R);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 print-report bg-[#FAFAFA] text-[#2D2D2D]">
-        <style>{`
-          @media print {
-            @page { size: A4 landscape; margin: 10mm; }
-            html.printing-report, html.printing-report body {
-              background: #fff !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            html.printing-report body { visibility: hidden !important; }
-            html.printing-report .print-report,
-            html.printing-report .print-report * { visibility: visible !important; }
-            html.printing-report [data-radix-dialog-overlay],
-            html.printing-report [data-slot="dialog-overlay"] {
-              display: none !important;
-              visibility: hidden !important;
-              background: transparent !important;
-            }
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 bg-[#FAFAFA] text-[#2D2D2D]">
+        <div ref={reportRef} className="px-8 pt-8 pb-6">
 
-            html.printing-report .print-report {
-              position: static !important;
-              inset: auto !important;
-              transform: none !important;
-              width: 100% !important;
-              max-width: 100% !important;
-              max-height: none !important;
-              height: auto !important;
-              overflow: visible !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #fff !important;
-              color: #000 !important;
-              box-shadow: none !important;
-              border: none !important;
-              border-radius: 0 !important;
-              display: block !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            html.printing-report .print-report * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            html.printing-report .no-print { display: none !important; }
-            html.printing-report .print-report section {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-            html.printing-report .print-report .dre-print { font-size: 9px !important; }
-            html.printing-report .print-report .dre-print th,
-            html.printing-report .print-report .dre-print td {
-              padding: 3px 6px !important;
-            }
-            html.printing-report .print-report .dre-print thead tr {
-              background: #1B3A4B !important;
-              color: #fff !important;
-            }
-            html.printing-report .print-report .dre-print thead th { color: #fff !important; }
-            html.printing-report .print-report .dre-print tr.subtotal {
-              background: #e8eff3 !important;
-            }
-            html.printing-report .print-report .meta-bar-fill {
-              background: #1B3A4B !important;
-            }
-            html.printing-report .print-report table {
-              break-inside: auto;
-              width: 100% !important;
-            }
-            html.printing-report .print-report thead { display: table-header-group; }
-            html.printing-report .print-report .dre-scroll {
-              overflow: visible !important;
-            }
-          }
-        `}</style>
-
-        <div className="px-8 pt-8 pb-6">
           <DialogHeader className="mb-0">
             <div className="border-b-2 border-[#1B3A4B] pb-4">
               <DialogTitle className="text-2xl font-semibold text-[#1B3A4B] tracking-tight">
@@ -1222,6 +1274,41 @@ function RelatorioDialog({
               </div>
             </div>
           </section>
+
+          <section className="mt-8">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
+              Sugestões de Melhoria
+            </h2>
+            {sugestoes.length === 0 ? (
+              <p className="text-sm text-[#2D2D2D]/70">
+                Todos os indicadores dentro dos parâmetros — plano consistente.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {sugestoes.map((s, i) => (
+                  <li
+                    key={i}
+                    className="border border-[#d0d0d0] bg-white p-3"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={cn(
+                          "inline-block text-[11px] font-semibold uppercase tracking-wide text-white px-2 py-0.5",
+                          s.oficial ? "bg-[#D97706]" : "bg-[#1B3A4B]",
+                        )}
+                      >
+                        {s.area}
+                      </span>
+                    </div>
+                    <div className="text-sm font-semibold text-[#2D2D2D]">{s.problema}</div>
+                    <div className="text-sm text-[#2D2D2D]/80 mt-1">{s.acao}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+
 
           <section className="mt-8">
             <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
