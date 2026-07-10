@@ -1047,7 +1047,79 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
   );
 }
 
+interface Sugestao { area: string; problema: string; acao: string; oficial?: boolean }
+
+function gerarSugestoes(R: ResultadoSimulacao): Sugestao[] {
+  const out: Sugestao[] = [];
+  const { crescPL } = calcIndicadores(R);
+
+  if (R.roe < META_ROE) {
+    out.push({
+      area: "Lucratividade",
+      oficial: true,
+      problema: `ROE projetado (${(R.roe * 100).toFixed(2)}%) abaixo da meta de ${(META_ROE * 100).toFixed(2)}%.`,
+      acao: "Revise preços por região buscando margem, corte custos de ociosidade de MOD e verifique se a propaganda de cada região ainda está abaixo do teto de saturação — acima dele, cada real vira desperdício.",
+    });
+  }
+
+  const perOcios = R.dre.filter((d) => d.ocios > 0).map((d) => `P${d.p}`);
+  if (perOcios.length > 0) {
+    out.push({
+      area: "Pessoas",
+      problema: `Ociosidade de MOD detectada em ${perOcios.join(", ")}.`,
+      acao: "Alinhe contratações e demissões de operários à programação de produção de cada período; MOD ociosa continua pesando na folha sem gerar receita. Ajuste o quadro para manter a operação enxuta e sustentável nos próximos ciclos.",
+    });
+  }
+
+  if (R.caixaMin <= 0) {
+    out.push({
+      area: "Caixa",
+      problema: `Caixa mínimo do horizonte em ${money(R.caixaMin)} — empréstimo automático acionado.`,
+      acao: "O empréstimo automático a 8% a.p. é a linha de crédito mais cara do jogo. Programe com antecedência um Empréstimo LP (4,3%) ou CP (4,9%) nos períodos deficitários para reduzir a despesa financeira e sustentar a operação.",
+    });
+  }
+
+  const perLLNeg = R.dre.filter((d) => d.ll < 0).map((d) => `P${d.p}`);
+  if (perLLNeg.length > 0) {
+    out.push({
+      area: "Resultado",
+      problema: `Lucro líquido negativo em ${perLLNeg.join(", ")}.`,
+      acao: "Esses períodos são os que mais pressionam o PL. Combine ajustes de preço, redução de custos variáveis e revisão de despesas comerciais para trazer o LL desses períodos ao positivo, mantendo o crescimento contínuo da empresa.",
+    });
+  }
+
+  const pdTotal = R.dre.reduce((s, d) => s + d.pd, 0);
+  if (pdTotal < 102000) {
+    out.push({
+      area: "P&D",
+      problema: `Investimento acumulado em P&D de ${money(pdTotal)} — abaixo do ponto de saturação (${money(102000)}).`,
+      acao: "Complete o investimento acumulado até $102.000,00 no horizonte para atingir a qualidade percebida máxima e sustentar o poder de precificação da ThermoTech nos períodos seguintes.",
+    });
+  }
+
+  if (crescPL < 0) {
+    out.push({
+      area: "Crescimento do PL",
+      oficial: true,
+      problema: `Crescimento do PL de ${(crescPL * 100).toFixed(2)}% — o patrimônio está encolhendo.`,
+      acao: "O PL cresce via lucro líquido retido. Priorize as ações de lucratividade (preço, custo, propaganda) para reverter o LL agregado e recompor o patrimônio, preservando a saúde financeira da empresa nos ciclos seguintes.",
+    });
+  }
+
+  const criticos = R.alertas.filter((a) => !a.aviso).length;
+  if (criticos > 0) {
+    out.push({
+      area: "Consistência",
+      problema: `${criticos} alerta(s) crítico(s) na simulação.`,
+      acao: "Resolva os alertas críticos antes de enviar as decisões no SES — eles indicam inconsistências que podem invalidar o plano ou gerar penalidade nos indicadores.",
+    });
+  }
+
+  return out;
+}
+
 function RelatorioDialog({
+
   open, onOpenChange, R, linhas, pctMeta,
 }: {
   open: boolean;
