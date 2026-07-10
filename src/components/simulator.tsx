@@ -833,7 +833,7 @@ function FinTable({
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 6 — RESULTADOS
 // ═══════════════════════════════════════════════════════════════
-export function TelaResultados({ R }: SimCtx) {
+export function TelaResultados({ S, R }: SimCtx) {
   const [openRel, setOpenRel] = useState(false);
   const pctMeta = Math.min(100, (R.llAcum / META_LL) * 100);
   const linhas: Array<{ nome: string; get: (d: (typeof R.dre)[number]) => number; neg?: boolean; bold?: boolean }> = [
@@ -869,7 +869,7 @@ export function TelaResultados({ R }: SimCtx) {
         </Button>
       </div>
 
-      <RelatorioDialog open={openRel} onOpenChange={setOpenRel} R={R} linhas={linhas} pctMeta={pctMeta} />
+      <RelatorioDialog open={openRel} onOpenChange={setOpenRel} S={S} R={R} linhas={linhas} pctMeta={pctMeta} />
 
       <SectionCard title="Indicadores Oficiais — SES" icon="🏅">
         <IndicadoresBar R={R} compact={false} />
@@ -1047,56 +1047,178 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
   );
 }
 
-interface Sugestao { area: string; problema: string; acao: string; oficial?: boolean }
+interface Sugestao { area: string; problema: string; acao: string; oficial?: boolean; periodo?: number }
 
-function gerarSugestoes(R: ResultadoSimulacao): Sugestao[] {
+function gerarSugestoes(S: EstadoPlano, R: ResultadoSimulacao): Sugestao[] {
   const out: Sugestao[] = [];
   const { crescPL } = calcIndicadores(R);
 
+  // 1) Ociosidade MOD por período
+  for (const d of R.dre) {
+    if (d.ocios > 0) {
+      const p = d.p;
+      const progP = +S.prog[p - 1] || 0;
+      const opIdeal = Math.max(0, Math.ceil((progP * 2.4) / 480));
+      const opHoje = R.op[p] || 0;
+      const delta = opHoje - opIdeal;
+      const nota = delta > 0
+        ? ` A redução exige demitir ${fmt0(delta)} operário(s) (custo $5.300 cada) — compare com manter o quadro se a produção dos próximos períodos absorver o excedente.`
+        : "";
+      out.push({
+        area: "Pessoas",
+        periodo: p,
+        problema: `Ociosidade de MOD em P${p} (custo ${money(d.ocios)}).`,
+        acao: `Pessoas → Operacional → Operários: ajustar Contratar/Demitir para chegar a ${fmt0(opIdeal)} operários em P${p} (hoje: ${fmt0(opHoje)}). Cada operário excedente custa $5.280/período sem gerar produção.${nota}`,
+      });
+    }
+  }
+
+  // 2) Produção limitada por MP
+  for (let p = 2; p <= P; p++) {
+    const progP = +S.prog[p - 1] || 0;
+    if (progP <= 0) continue;
+    const mpAntFim = R.mpFim[p - 2] || 0;
+    const mpCompra = +S.mp[p - 1] || 0;
+    const mpDisp = mpAntFim + mpCompra;
+    if (progP > Math.floor(mpDisp / 3)) {
+      const mpIdeal = progP * 3 - mpAntFim;
+      out.push({
+        area: "Produção",
+        periodo: p,
+        problema: `Produção de P${p} limitada por matéria-prima disponível (${fmt0(mpDisp)} MP; precisa ${fmt0(progP * 3)}).`,
+        acao: `Produção → Compra MP p/ T+1 no P${p - 1}: alterar para ${fmt0(mpIdeal)} (hoje: ${fmt0(mpCompra)}) para viabilizar a programação de ${fmt0(progP)} unidades em P${p}.`,
+      });
+    }
+  }
+
+  // 3) Produção limitada por capacidade
+  for (let p = 1; p <= P; p++) {
+    const progP = +S.prog[p - 1] || 0;
+    const capP = R.cap[p] || 0;
+    if (progP > capP) {
+      const deficit = progP - capP;
+      out.push({
+        area: "Capacidade",
+        periodo: p,
+        problema: `Programação de P${p} (${fmt0(progP)}) excede a capacidade instalada (${fmt0(capP)}).`,
+        acao: `Estratégia → Expansão para T+1 no P${p - 1}: aumentar em ${fmt0(deficit)} unidades de capacidade (custo $210/un., pago 50/25/25%), ou reduzir Produção → Programação p/ T+1 no P${p - 1} para ${fmt0(capP)}.`,
+      });
+    }
+  }
+
+  // 4) Supervisores de produção insuficientes
+  for (let p = 1; p <= P; p++) {
+    const opP = R.op[p] || 0;
+    if (opP <= 0) continue;
+    const necSP = Math.ceil(opP / 12);
+    if ((R.sp[p] || 0) < necSP) {
+      const falta = necSP - (R.sp[p] || 0);
+      out.push({
+        area: "Pessoas",
+        periodo: p,
+        problema: `Supervisores de produção insuficientes em P${p} (${R.sp[p]}/${necSP}) — perda de 20% de produtividade.`,
+        acao: `Pessoas → Operacional → Supervisores de Produção: contratar ${fmt0(falta)} SP até P${p} para eliminar a perda de produtividade.`,
+      });
+    }
+  }
+
+  // 5) Supervisores de venda insuficientes
+  for (let p = 1; p <= P; p++) {
+    const vdP = R.vd[p] || 0;
+    if (vdP <= 0) continue;
+    const necSV = Math.ceil(vdP / 8);
+    if ((R.sv[p] || 0) < necSV) {
+      const falta = necSV - (R.sv[p] || 0);
+      out.push({
+        area: "Pessoas",
+        periodo: p,
+        problema: `Supervisores de venda insuficientes em P${p} (${R.sv[p]}/${necSV}) — perda de até 30% de produtividade.`,
+        acao: `Pessoas → Comercial → Supervisores de Venda: contratar ${fmt0(falta)} SV até P${p} para eliminar a perda de produtividade.`,
+      });
+    }
+  }
+
+  // 6) Propaganda acima do teto
+  const rotulos = ["R1", "R2", "R3"] as const;
+  for (let p = 1; p <= P; p++) {
+    for (let r = 0; r < 3; r++) {
+      const t = +(S.propT[p]?.[r] || 0);
+      const o = +(S.propO[p]?.[r] || 0);
+      if (t > TETO_PROP) {
+        out.push({
+          area: "Marketing",
+          periodo: p,
+          problema: `Propaganda Tradicional ${rotulos[r]} no P${p} acima do teto (${money(t)}).`,
+          acao: `Marketing → Propaganda → Tradicional ${rotulos[r]} no P${p}: reduzir de ${money(t)} para ${money(TETO_PROP)} — o excedente de ${money(t - TETO_PROP)} é desperdício puro.`,
+        });
+      }
+      if (o > TETO_PROP) {
+        out.push({
+          area: "Marketing",
+          periodo: p,
+          problema: `Propaganda Online ${rotulos[r]} no P${p} acima do teto (${money(o)}).`,
+          acao: `Marketing → Propaganda → Online ${rotulos[r]} no P${p}: reduzir de ${money(o)} para ${money(TETO_PROP)} — o excedente de ${money(o - TETO_PROP)} é desperdício puro.`,
+        });
+      }
+    }
+  }
+
+  // 7) P&D abaixo da saturação
+  const pdTotal = R.dre.reduce((s, d) => s + d.pd, 0);
+  if (pdTotal < 102000) {
+    const falta = 102000 - pdTotal;
+    out.push({
+      area: "P&D",
+      problema: `Investimento acumulado em P&D de ${money(pdTotal)} — abaixo do ponto de saturação (${money(102000)}).`,
+      acao: `Marketing → P&D: distribuir mais ${money(falta)} nos períodos iniciais (P1–P3) — quanto antes atingir a saturação de ${money(102000)}, mais períodos se beneficiam da qualidade máxima.`,
+    });
+  }
+
+  // 8) Rotativo automático acionado
+  const perRot = new Set<number>();
+  for (const a of R.alertas) {
+    const m = /P(\d+):\s*caixa estourou/.exec(a.texto);
+    if (m) perRot.add(parseInt(m[1], 10));
+  }
+  for (const p of Array.from(perRot).sort((a, b) => a - b)) {
+    const deficit = -(R.dre.find((d) => d.p === p)?.caixa ?? 0);
+    const contexto = deficit > 0 ? ` (déficit aproximado ${money(deficit)})` : "";
+    const alvo = Math.max(1, p - 1);
+    out.push({
+      area: "Finanças",
+      periodo: p,
+      problema: `Rotativo automático a 8% acionado em P${p}${contexto}.`,
+      acao: `Finanças → Financiamentos → Empréstimo LP no P${alvo}: contratar valor suficiente para cobrir o déficit do P${p} — LP a 4,3% custa quase metade do rotativo a 8%.`,
+    });
+  }
+
+  // 9) Vendas acima do disponível
+  for (const a of R.alertas) {
+    const m = /P(\d+):\s*previsão de vendas maior que o disponível/.exec(a.texto);
+    if (m) {
+      const p = parseInt(m[1], 10);
+      const disp = (R.paFim[p - 1] || 0) + (R.prod[p] || 0);
+      const alvo = Math.max(1, p - 1);
+      out.push({
+        area: "Marketing",
+        periodo: p,
+        problema: `Previsão de vendas em P${p} maior que o disponível (${fmt0(disp)} un.).`,
+        acao: `Marketing → Previsão: reduzir a previsão total do P${p} para ${fmt0(disp)} unidades, ou aumentar Produção → Programação p/ T+1 no P${alvo}.`,
+      });
+    }
+  }
+
+  // 10) ROE abaixo da meta (oficial)
   if (R.roe < META_ROE) {
     out.push({
       area: "Lucratividade",
       oficial: true,
       problema: `ROE projetado (${(R.roe * 100).toFixed(2)}%) abaixo da meta de ${(META_ROE * 100).toFixed(2)}%.`,
-      acao: "Revise preços por região buscando margem, corte custos de ociosidade de MOD e verifique se a propaganda de cada região ainda está abaixo do teto de saturação — acima dele, cada real vira desperdício.",
+      acao: "As ações acima atacam diretamente o LL acumulado — priorize na ordem: eliminar ociosidade de MOD, eliminar o rotativo automático, capturar as vendas perdidas por falta de produto.",
     });
   }
 
-  const perOcios = R.dre.filter((d) => d.ocios > 0).map((d) => `P${d.p}`);
-  if (perOcios.length > 0) {
-    out.push({
-      area: "Pessoas",
-      problema: `Ociosidade de MOD detectada em ${perOcios.join(", ")}.`,
-      acao: "Alinhe contratações e demissões de operários à programação de produção de cada período; MOD ociosa continua pesando na folha sem gerar receita. Ajuste o quadro para manter a operação enxuta e sustentável nos próximos ciclos.",
-    });
-  }
-
-  if (R.caixaMin <= 0) {
-    out.push({
-      area: "Caixa",
-      problema: `Caixa mínimo do horizonte em ${money(R.caixaMin)} — empréstimo automático acionado.`,
-      acao: "O empréstimo automático a 8% a.p. é a linha de crédito mais cara do jogo. Programe com antecedência um Empréstimo LP (4,3%) ou CP (4,9%) nos períodos deficitários para reduzir a despesa financeira e sustentar a operação.",
-    });
-  }
-
-  const perLLNeg = R.dre.filter((d) => d.ll < 0).map((d) => `P${d.p}`);
-  if (perLLNeg.length > 0) {
-    out.push({
-      area: "Resultado",
-      problema: `Lucro líquido negativo em ${perLLNeg.join(", ")}.`,
-      acao: "Esses períodos são os que mais pressionam o PL. Combine ajustes de preço, redução de custos variáveis e revisão de despesas comerciais para trazer o LL desses períodos ao positivo, mantendo o crescimento contínuo da empresa.",
-    });
-  }
-
-  const pdTotal = R.dre.reduce((s, d) => s + d.pd, 0);
-  if (pdTotal < 102000) {
-    out.push({
-      area: "P&D",
-      problema: `Investimento acumulado em P&D de ${money(pdTotal)} — abaixo do ponto de saturação (${money(102000)}).`,
-      acao: "Complete o investimento acumulado até $102.000,00 no horizonte para atingir a qualidade percebida máxima e sustentar o poder de precificação da ThermoTech nos períodos seguintes.",
-    });
-  }
-
+  // 11) Crescimento do PL negativo (oficial)
   if (crescPL < 0) {
     out.push({
       area: "Crescimento do PL",
@@ -1106,24 +1228,24 @@ function gerarSugestoes(R: ResultadoSimulacao): Sugestao[] {
     });
   }
 
-  const criticos = R.alertas.filter((a) => !a.aviso).length;
-  if (criticos > 0) {
-    out.push({
-      area: "Consistência",
-      problema: `${criticos} alerta(s) crítico(s) na simulação.`,
-      acao: "Resolva os alertas críticos antes de enviar as decisões no SES — eles indicam inconsistências que podem invalidar o plano ou gerar penalidade nos indicadores.",
-    });
-  }
+  // Ordenação: oficiais primeiro; depois por período crescente; sem período ao final.
+  out.sort((a, b) => {
+    if (!!b.oficial !== !!a.oficial) return a.oficial ? -1 : 1;
+    const pa = a.periodo ?? Number.POSITIVE_INFINITY;
+    const pb = b.periodo ?? Number.POSITIVE_INFINITY;
+    return pa - pb;
+  });
 
   return out;
 }
 
 function RelatorioDialog({
 
-  open, onOpenChange, R, linhas, pctMeta,
+  open, onOpenChange, S, R, linhas, pctMeta,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  S: EstadoPlano;
   R: ResultadoSimulacao;
   linhas: Array<{ nome: string; get: (d: (typeof R.dre)[number]) => number; neg?: boolean; bold?: boolean }>;
   pctMeta: number;
@@ -1194,7 +1316,7 @@ function RelatorioDialog({
     }
   }, []);
 
-  const sugestoes = gerarSugestoes(R);
+  const sugestoes = gerarSugestoes(S, R);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
