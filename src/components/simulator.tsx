@@ -833,7 +833,7 @@ function FinTable({
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 6 — RESULTADOS
 // ═══════════════════════════════════════════════════════════════
-export function TelaResultados({ R }: SimCtx) {
+export function TelaResultados({ S, R }: SimCtx) {
   const [openRel, setOpenRel] = useState(false);
   const pctMeta = Math.min(100, (R.llAcum / META_LL) * 100);
   const linhas: Array<{ nome: string; get: (d: (typeof R.dre)[number]) => number; neg?: boolean; bold?: boolean }> = [
