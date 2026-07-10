@@ -223,7 +223,7 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
 
     dre.push({
       p, receita: receita[p], cpv, frete, comis, arm, prop, pd, fixos, admin: ADMIN, ocios: folhaOpExtra,
-      folhaSup, folhaVd, folhaSv, contr, jRec, jPag, lair, ir, ll, llAcum, caixa: cx,
+      folhaSup, folhaVd, folhaSv, contr, deprec, jRec, jPag, lair, ir, ll, llAcum, caixa: cx,
       prod: prod[p], vTot: vTot[p], cap: cap[p], pa: paFim[p], mp: mpFim[p], op: op[p], sp: sp[p], vd: vd[p], sv: sv[p],
     });
   }
