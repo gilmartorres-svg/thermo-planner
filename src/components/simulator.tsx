@@ -1062,94 +1062,73 @@ function RelatorioDialog({
   const dadosReceita = R.dre.map((d) => ({ periodo: `P${d.p}`, receita: d.receita }));
   const dadosLL = R.dre.map((d) => ({ periodo: `P${d.p}`, ll: d.ll }));
 
+  const reportRef = useRef<HTMLDivElement>(null);
+
   const handlePrint = useCallback(() => {
-    document.documentElement.classList.add("printing-report");
-    const cleanup = () => {
-      document.documentElement.classList.remove("printing-report");
-      window.removeEventListener("afterprint", cleanup);
+    const node = reportRef.current;
+    if (!node) return;
+    const w = window.open("", "_blank");
+    if (!w) {
+      toast.error("Habilite pop-ups para imprimir o relatório.");
+      return;
+    }
+    const headAssets = Array.from(
+      document.head.querySelectorAll('link[rel="stylesheet"], style'),
+    )
+      .map((el) => el.outerHTML)
+      .join("\n");
+    const printCss = `
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        html, body {
+          background: #fff !important;
+          margin: 0; padding: 0;
+          color: #2D2D2D;
+        }
+        *, *::before, *::after {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .report-root {
+          max-width: 100%;
+          background: #fff;
+          padding: 12mm 10mm;
+        }
+        section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 18px; }
+        table { break-inside: auto; width: 100%; border-collapse: collapse; }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; page-break-inside: avoid; }
+        .dre-print { font-size: 9px !important; }
+        .dre-print th, .dre-print td { padding: 3px 6px !important; }
+        .dre-scroll { overflow: visible !important; }
+      </style>
+    `;
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório ThermoTech SA</title>${headAssets}${printCss}</head><body><div class="report-root">${node.innerHTML}</div></body></html>`;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    const doPrint = () => {
+      w.focus();
+      w.print();
     };
-    window.addEventListener("afterprint", cleanup);
-    setTimeout(() => window.print(), 50);
+    const onAfter = () => {
+      w.close();
+    };
+    w.addEventListener("afterprint", onAfter);
+    if (w.document.readyState === "complete") {
+      setTimeout(doPrint, 150);
+    } else {
+      w.addEventListener("load", () => setTimeout(doPrint, 150));
+    }
   }, []);
+
+  const sugestoes = gerarSugestoes(R);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 print-report bg-[#FAFAFA] text-[#2D2D2D]">
-        <style>{`
-          @media print {
-            @page { size: A4 landscape; margin: 10mm; }
-            html.printing-report, html.printing-report body {
-              background: #fff !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            html.printing-report body { visibility: hidden !important; }
-            html.printing-report .print-report,
-            html.printing-report .print-report * { visibility: visible !important; }
-            html.printing-report [data-radix-dialog-overlay],
-            html.printing-report [data-slot="dialog-overlay"] {
-              display: none !important;
-              visibility: hidden !important;
-              background: transparent !important;
-            }
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 bg-[#FAFAFA] text-[#2D2D2D]">
+        <div ref={reportRef} className="px-8 pt-8 pb-6">
 
-            html.printing-report .print-report {
-              position: static !important;
-              inset: auto !important;
-              transform: none !important;
-              width: 100% !important;
-              max-width: 100% !important;
-              max-height: none !important;
-              height: auto !important;
-              overflow: visible !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #fff !important;
-              color: #000 !important;
-              box-shadow: none !important;
-              border: none !important;
-              border-radius: 0 !important;
-              display: block !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            html.printing-report .print-report * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            html.printing-report .no-print { display: none !important; }
-            html.printing-report .print-report section {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-            html.printing-report .print-report .dre-print { font-size: 9px !important; }
-            html.printing-report .print-report .dre-print th,
-            html.printing-report .print-report .dre-print td {
-              padding: 3px 6px !important;
-            }
-            html.printing-report .print-report .dre-print thead tr {
-              background: #1B3A4B !important;
-              color: #fff !important;
-            }
-            html.printing-report .print-report .dre-print thead th { color: #fff !important; }
-            html.printing-report .print-report .dre-print tr.subtotal {
-              background: #e8eff3 !important;
-            }
-            html.printing-report .print-report .meta-bar-fill {
-              background: #1B3A4B !important;
-            }
-            html.printing-report .print-report table {
-              break-inside: auto;
-              width: 100% !important;
-            }
-            html.printing-report .print-report thead { display: table-header-group; }
-            html.printing-report .print-report .dre-scroll {
-              overflow: visible !important;
-            }
-          }
-        `}</style>
-
-        <div className="px-8 pt-8 pb-6">
           <DialogHeader className="mb-0">
             <div className="border-b-2 border-[#1B3A4B] pb-4">
               <DialogTitle className="text-2xl font-semibold text-[#1B3A4B] tracking-tight">
