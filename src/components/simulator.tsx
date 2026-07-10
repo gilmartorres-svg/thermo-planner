@@ -1316,7 +1316,7 @@ function RelatorioDialog({
     }
   }, []);
 
-  const sugestoes = gerarSugestoes(R);
+  const sugestoes = gerarSugestoes(S, R);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
