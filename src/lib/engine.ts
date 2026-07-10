@@ -54,7 +54,7 @@ export interface Alerta { texto: string; aviso: boolean }
 export interface PeriodoDRE {
   p: number; receita: number; cpv: number; frete: number; comis: number; arm: number;
   prop: number; pd: number; fixos: number; admin: number; ocios: number;
-  folhaSup: number; folhaVd: number; folhaSv: number; contr: number;
+  folhaSup: number; folhaVd: number; folhaSv: number; contr: number; deprec: number;
   jRec: number; jPag: number; lair: number; ir: number; ll: number; llAcum: number;
   caixa: number; prod: number; vTot: number; cap: number; pa: number; mp: number;
   op: number; sp: number; vd: number; sv: number;
