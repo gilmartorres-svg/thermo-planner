@@ -198,7 +198,8 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     const jRot = (rotSaldo[p - 1] || 0) * 0.08;
     const jEmC = (p >= 2 ? (+S.emC[p - 1] || 0) * 0.049 : 0);
     const jPag = jRot + jEmC + lpJur[p];
-    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - ADMIN - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr + jRec - jPag;
+    const deprec = cap[p] * MODULO * DEPREC;
+    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - ADMIN - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr - deprec + jRec - jPag;
     const ir = lair > 0 ? lair * IR : 0;
     const ll = lair - ir;
     llAcum += ll;
