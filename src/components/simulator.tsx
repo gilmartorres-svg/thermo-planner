@@ -1205,6 +1205,41 @@ function RelatorioDialog({
 
           <section className="mt-8">
             <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
+              Sugestões de Melhoria
+            </h2>
+            {sugestoes.length === 0 ? (
+              <p className="text-sm text-[#2D2D2D]/70">
+                Todos os indicadores dentro dos parâmetros — plano consistente.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {sugestoes.map((s, i) => (
+                  <li
+                    key={i}
+                    className="border border-[#d0d0d0] bg-white p-3"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={cn(
+                          "inline-block text-[11px] font-semibold uppercase tracking-wide text-white px-2 py-0.5",
+                          s.oficial ? "bg-[#D97706]" : "bg-[#1B3A4B]",
+                        )}
+                      >
+                        {s.area}
+                      </span>
+                    </div>
+                    <div className="text-sm font-semibold text-[#2D2D2D]">{s.problema}</div>
+                    <div className="text-sm text-[#2D2D2D]/80 mt-1">{s.acao}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+
+
+          <section className="mt-8">
+            <h2 className="text-sm uppercase tracking-widest text-[#1B3A4B] font-semibold mb-3 pb-2 border-b border-[#d0d0d0]">
               DRE — Período a Período
             </h2>
             <div className="dre-scroll overflow-x-auto border border-[#d0d0d0]">
