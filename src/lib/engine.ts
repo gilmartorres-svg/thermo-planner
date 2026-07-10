@@ -10,6 +10,7 @@ const ARM_MP = 3, ARM_PA = 4.85, ADMIN = 52000, IR = 0.30, CAPITAL = 3_000_000;
 export const META_ROE = 0.5529;
 export const META_LL = CAPITAL * META_ROE;
 const MODULO = 210; // $/unidade de capacidade
+const DEPREC = 0.025;
 export const TETO_PROP = 20649.76; // 1% do faturamento médio potencial
 
 const OP = { c: 3000, t: 700, d: 5300, sal: 5280 };
@@ -53,7 +54,7 @@ export interface Alerta { texto: string; aviso: boolean }
 export interface PeriodoDRE {
   p: number; receita: number; cpv: number; frete: number; comis: number; arm: number;
   prop: number; pd: number; fixos: number; admin: number; ocios: number;
-  folhaSup: number; folhaVd: number; folhaSv: number; contr: number;
+  folhaSup: number; folhaVd: number; folhaSv: number; contr: number; deprec: number;
   jRec: number; jPag: number; lair: number; ir: number; ll: number; llAcum: number;
   caixa: number; prod: number; vTot: number; cap: number; pa: number; mp: number;
   op: number; sp: number; vd: number; sv: number;
@@ -197,7 +198,8 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     const jRot = (rotSaldo[p - 1] || 0) * 0.08;
     const jEmC = (p >= 2 ? (+S.emC[p - 1] || 0) * 0.049 : 0);
     const jPag = jRot + jEmC + lpJur[p];
-    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - ADMIN - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr + jRec - jPag;
+    const deprec = cap[p] * MODULO * DEPREC;
+    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - ADMIN - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr - deprec + jRec - jPag;
     const ir = lair > 0 ? lair * IR : 0;
     const ll = lair - ir;
     llAcum += ll;
@@ -221,7 +223,7 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
 
     dre.push({
       p, receita: receita[p], cpv, frete, comis, arm, prop, pd, fixos, admin: ADMIN, ocios: folhaOpExtra,
-      folhaSup, folhaVd, folhaSv, contr, jRec, jPag, lair, ir, ll, llAcum, caixa: cx,
+      folhaSup, folhaVd, folhaSv, contr, deprec, jRec, jPag, lair, ir, ll, llAcum, caixa: cx,
       prod: prod[p], vTot: vTot[p], cap: cap[p], pa: paFim[p], mp: mpFim[p], op: op[p], sp: sp[p], vd: vd[p], sv: sv[p],
     });
   }

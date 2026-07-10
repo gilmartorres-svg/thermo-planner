@@ -850,6 +850,7 @@ export function TelaResultados({ R }: SimCtx) {
     { nome: "(–) Folha vendas", get: (d) => -d.folhaVd, neg: true },
     { nome: "(–) Folha superv. vendas", get: (d) => -d.folhaSv, neg: true },
     { nome: "(–) Contratações / demissões", get: (d) => -d.contr, neg: true },
+    { nome: "(–) Depreciação", get: (d) => -d.deprec, neg: true },
     { nome: "(+) Receita financeira", get: (d) => d.jRec },
     { nome: "(–) Despesa financeira", get: (d) => -d.jPag, neg: true },
     { nome: "LAIR", get: (d) => d.lair, bold: true },
