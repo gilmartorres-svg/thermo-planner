@@ -452,5 +452,11 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     });
   }
 
-  return { dre, llAcum, pl: CAPITAL + llAcum, roe: llAcum / CAPITAL, caixaMin, cap: capAtiva, op, sp, vd, sv, prod, vTot, receita, paFim, mpFim, alertas };
+  // Seção 14: indicadores oficiais
+  const receitaAcum = receita.reduce((a, b) => a + (b || 0), 0);
+  const lucratividade = receitaAcum > 0 ? llAcum / receitaAcum : 0;
+  const pl = CAPITAL + llAcum;
+  const crescimentoPL = (pl - CAPITAL) / CAPITAL;
+
+  return { dre, llAcum, pl, roe: llAcum / CAPITAL, caixaMin, cap: capAtiva, op, sp, vd, sv, prod, vTot, receita, paFim, mpFim, alertas, lucratividade, crescimentoPL };
 }
