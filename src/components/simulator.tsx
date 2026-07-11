@@ -444,19 +444,21 @@ function MktPropaganda({
 }: { S: EstadoPlano; setPerReg: SimCtx["setPerReg"] }) {
   return (
     <SectionCard title="Propaganda por Mídia e Região" icon="📣"
-      right={<span className="text-xs text-white/85">Teto por campo: {money(TETO_PROP)}</span>}>
+      right={<span className="text-xs text-white/85">Teto por período (e-NEWS)</span>}>
       <Zebra>
         <thead>
           <tr>
             <th>Período</th>
             <th className="!text-right" colSpan={3}>Tradicional (R1 / R2 / R3)</th>
             <th className="!text-right" colSpan={3}>Online (R1 / R2 / R3)</th>
+            <th className="!text-right">Teto</th>
             <th className="!text-right">Total</th>
           </tr>
         </thead>
         <tbody>
           {Array.from({ length: P }, (_, i) => i + 1).map((p) => {
             const total = [0, 1, 2].reduce((s, r) => s + (S.propT[p][r] || 0) + (S.propO[p][r] || 0), 0);
+            const teto = tetoPropDe(S, p);
             return (
               <tr key={p}>
                 <td className="font-medium">P{p}</td>
@@ -465,7 +467,7 @@ function MktPropaganda({
                     <NumCell
                       value={S.propT[p][r]}
                       onCommit={(v) => setPerReg("propT", p, r, v)}
-                      warn={(S.propT[p][r] || 0) > TETO_PROP}
+                      warn={(S.propT[p][r] || 0) > teto}
                     />
                   </td>
                 ))}
@@ -474,10 +476,11 @@ function MktPropaganda({
                     <NumCell
                       value={S.propO[p][r]}
                       onCommit={(v) => setPerReg("propO", p, r, v)}
-                      warn={(S.propO[p][r] || 0) > TETO_PROP}
+                      warn={(S.propO[p][r] || 0) > teto}
                     />
                   </td>
                 ))}
+                <td className="text-right text-xs text-muted-foreground">{money(teto)}</td>
                 <td className="text-right font-medium">{money(total)}</td>
               </tr>
             );
