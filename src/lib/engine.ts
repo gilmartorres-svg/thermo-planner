@@ -152,6 +152,8 @@ export interface EstadoPlano {
   // Seção 9: inflação informativa (NÃO aplicada automaticamente a nenhuma rubrica —
   // quais rubricas sofrem reajuste será confirmado no Real P3).
   inflacao?: number[];
+  // Seção 10: demanda prevista por período/região (opcional; default DEMANDA_DEFAULT)
+  demandaPrev?: number[][];
 }
 
 export interface Alerta { texto: string; aviso: boolean }
