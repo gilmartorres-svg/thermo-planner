@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from "recharts";
 import {
-  planoInicial, simular, P, REGIOES, META_LL, META_ROE, TETO_PROP,
+  planoInicial, simular, P, REGIOES, META_LL, META_ROE, TETO_PROP, tetoPropDe,
   type EstadoPlano, type ResultadoSimulacao, type FormaPagamento,
 } from "@/lib/engine";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -1141,23 +1141,24 @@ function gerarSugestoes(S: EstadoPlano, R: ResultadoSimulacao): Sugestao[] {
   // 6) Propaganda acima do teto
   const rotulos = ["R1", "R2", "R3"] as const;
   for (let p = 1; p <= P; p++) {
+    const teto = tetoPropDe(S, p);
     for (let r = 0; r < 3; r++) {
       const t = +(S.propT[p]?.[r] || 0);
       const o = +(S.propO[p]?.[r] || 0);
-      if (t > TETO_PROP) {
+      if (t > teto) {
         out.push({
           area: "Marketing",
           periodo: p,
           problema: `Propaganda Tradicional ${rotulos[r]} no P${p} acima do teto (${money(t)}).`,
-          acao: `Marketing → Propaganda → Tradicional ${rotulos[r]} no P${p}: reduzir de ${money(t)} para ${money(TETO_PROP)} — o excedente de ${money(t - TETO_PROP)} é desperdício puro.`,
+          acao: `Marketing → Propaganda → Tradicional ${rotulos[r]} no P${p}: reduzir de ${money(t)} para ${money(teto)} — o excedente de ${money(t - teto)} é desperdício puro.`,
         });
       }
-      if (o > TETO_PROP) {
+      if (o > teto) {
         out.push({
           area: "Marketing",
           periodo: p,
           problema: `Propaganda Online ${rotulos[r]} no P${p} acima do teto (${money(o)}).`,
-          acao: `Marketing → Propaganda → Online ${rotulos[r]} no P${p}: reduzir de ${money(o)} para ${money(TETO_PROP)} — o excedente de ${money(o - TETO_PROP)} é desperdício puro.`,
+          acao: `Marketing → Propaganda → Online ${rotulos[r]} no P${p}: reduzir de ${money(o)} para ${money(teto)} — o excedente de ${money(o - teto)} é desperdício puro.`,
         });
       }
     }
