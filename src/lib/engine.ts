@@ -316,6 +316,13 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     for (const r of [1, 2, 0]) { got[r] = Math.min(want[r], rest); rest -= got[r]; }
     if (want[0] + want[1] + want[2] > disp) A(`P${p}: previsão de vendas maior que o disponível — corte por prioridade R2>R3>R1`, true);
     for (const r of [0, 1, 2]) { if (got[r] > 0 && (+S.vend[p][r] || 0) === 0) A(`P${p}: vendas em ${REGIOES[r]} sem vendedor alocado`); }
+    // Seção 10: validação da demanda prevista sobre vendas PLANEJADAS
+    const demP = demandaPrevDe(S, p);
+    for (const r of [0, 1, 2]) {
+      if (want[r] > (demP[r] || 0)) {
+        A(`P${p}: vendas planejadas em R${r + 1} (${want[r]}) excedem a demanda prevista (${demP[r] || 0}) — risco de superestimação de receita`, true);
+      }
+    }
     vReal[p] = got; vTot[p] = got[0] + got[1] + got[2];
     paFim[p] = disp - vTot[p];
     receita[p] = got[0] * (+S.preco[p][0] || 0) + got[1] * (+S.preco[p][1] || 0) + got[2] * (+S.preco[p][2] || 0);
