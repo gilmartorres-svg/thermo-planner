@@ -174,6 +174,9 @@ export interface ResultadoSimulacao {
   cap: number[]; op: number[]; sp: number[]; vd: number[]; sv: number[];
   prod: number[]; vTot: number[]; receita: number[]; paFim: number[]; mpFim: number[];
   alertas: Alerta[];
+  // Seção 14: indicadores oficiais SES
+  lucratividade: number; // LL acumulado ÷ Σ receita bruta (peso 7)
+  crescimentoPL: number; // (PL final − 3.000.000) / 3.000.000 (peso 6)
 }
 
 const zeros = () => Array(P + 1).fill(0);
