@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import {
   planoInicial, simular, P, REGIOES, META_LL, META_ROE, TETO_PROP, tetoPropDe,
+  TETO_PROP_DEFAULT, DEMANDA_DEFAULT, demandaPrevDe,
   type EstadoPlano, type ResultadoSimulacao, type FormaPagamento,
 } from "@/lib/engine";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
