@@ -1025,9 +1025,9 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
       <IndicadorCard
         nome="Lucratividade" peso={7}
         valor={(lucratividade * 100).toFixed(2) + "%"}
-        subvalor={money(R.llAcum)}
-        detalhe={`ROE — LL acum. ${money(R.llAcum)}`}
-        tone={lucratividade < 0 ? "red" : lucratividade >= META_ROE ? "green" : "amber"}
+        subvalor={`LL acum. ${money(R.llAcum)} ÷ receita acum. ${money(faturamento)}`}
+        detalhe={`ROE (retorno sobre capital inicial): ${(R.roe * 100).toFixed(2)}% — meta ${(META_ROE * 100).toFixed(2)}%`}
+        tone={lucratividade < 0 ? "red" : lucratividade > 0 ? "green" : "amber"}
         compact={compact}
       />
       <IndicadorCard
