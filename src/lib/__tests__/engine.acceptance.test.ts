@@ -48,6 +48,9 @@ function planoReal(): EstadoPlano {
     com,
     apG, apC, apM,
     emC: zeros(), emL: zeros(),
+    // C5: eventos oficiais do Real P1 / Projetado P2
+    eventosDesp: [0, 101850, 5500, 0, 0, 0, 0, 0, 0],
+    eventosRec:  [0,   1850,    0, 0, 0, 0, 0, 0, 0],
   };
 }
 
