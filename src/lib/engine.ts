@@ -6,8 +6,7 @@ export const REGIOES = ['R1', 'R2', 'R3'] as const;
 const FRETE = [20, 0, 44];
 const CUSTO_MP = 40, MP_UN = 3, MOD_H = 2.4, SAL_H = 11, H_PER = 480;
 const MOD_UN = MOD_H * SAL_H; // 26.4
-// ADMIN calibrado pelos relatórios oficiais SES (Real P1 / Projetado P2).
-const ARM_MP = 3, ARM_PA = 4.85, ADMIN = 42000, IR = 0.30, CAPITAL = 3_000_000;
+const ARM_MP = 3, ARM_PA = 4.85, ADMIN = 52000, IR = 0.30, CAPITAL = 3_000_000;
 export const META_ROE = 0.5529;
 export const META_LL = CAPITAL * META_ROE;
 const MODULO = 210; // $/unidade de capacidade

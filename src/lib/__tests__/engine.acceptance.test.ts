@@ -26,8 +26,8 @@ function planoReal(): EstadoPlano {
   propT[1] = [4000, 15000, 15000];
   propT[2] = [4000, 15000, 15000];
   const propO = zerosR();
-  propO[1] = [10000, 15000, 15000];
-  propO[2] = [10000, 15000, 15000];
+  propO[1] = [10000, 15000, 5000];
+  propO[2] = [10000, 15000, 5000];
 
   return {
     capIni: 2000,
