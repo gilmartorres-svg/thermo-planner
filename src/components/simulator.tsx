@@ -199,7 +199,108 @@ export function TelaEstrategia({ S, R, setPer, setScalar }: SimCtx) {
           </tbody>
         </Zebra>
       </SectionCard>
+
+      <IndicadoresENews S={S} setEstado={(novo) => (setEstado ? setEstado(novo) : null)} />
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Indicadores e-NEWS (edição de teto de propaganda e demanda prevista)
+// ═══════════════════════════════════════════════════════════════
+const AMBER = "#D97706";
+const AZUL_PETROLEO = "#1B3A4B";
+
+function IndicadoresENews({ S, setEstado }: { S: EstadoPlano; setEstado: (novo: EstadoPlano) => void }) {
+  const setTeto = (p: number, v: number) => {
+    const base = S.tetoProp ? [...S.tetoProp] : [...TETO_PROP_DEFAULT];
+    base[p] = v;
+    setEstado({ ...S, tetoProp: base });
+  };
+  const setDemanda = (p: number, r: number, v: number) => {
+    const base = S.demandaPrev
+      ? S.demandaPrev.map((row) => [...row])
+      : DEMANDA_DEFAULT.map((row) => [...row]);
+    base[p][r] = v;
+    setEstado({ ...S, demandaPrev: base });
+  };
+
+  return (
+    <SectionCard title="Indicadores e-NEWS" icon="📰">
+      <p className="text-xs text-muted-foreground mb-3">
+        Atualize a cada rodada com os valores do e-NEWS: teto = 1% do faturamento médio da indústria,
+        por mídia/região; demanda = INFONEWS "Previsão da Demanda" (disponível a partir de P3).
+      </p>
+
+      <h4 className="text-sm font-semibold mb-2" style={{ color: AZUL_PETROLEO }}>
+        Teto de propaganda por período
+      </h4>
+      <Zebra>
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th className="!text-right">Teto ($)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: P }, (_, i) => i + 1).map((p) => {
+            const val = tetoPropDe(S, p);
+            const prev = p > 1 ? tetoPropDe(S, p - 1) : val;
+            const destaque = p > 1 && val !== prev;
+            return (
+              <tr key={p}>
+                <td className="font-medium">P{p}</td>
+                <td className="w-48">
+                  <div
+                    style={destaque ? { boxShadow: `inset 0 0 0 2px ${AMBER}`, borderRadius: 4 } : undefined}
+                  >
+                    <NumCell value={val} onCommit={(v) => setTeto(p, v)} />
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Zebra>
+
+      <h4 className="text-sm font-semibold mt-4 mb-2" style={{ color: AZUL_PETROLEO }}>
+        Demanda prevista por região
+      </h4>
+      <Zebra>
+        <thead>
+          <tr>
+            <th>Período</th>
+            {REGIOES.map((rg) => (
+              <th key={rg} className="!text-right">{rg}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: P }, (_, i) => i + 1).map((p) => {
+            const row = demandaPrevDe(S, p);
+            const prevRow = p > 1 ? demandaPrevDe(S, p - 1) : row;
+            return (
+              <tr key={p}>
+                <td className="font-medium">P{p}</td>
+                {REGIOES.map((_, r) => {
+                  const val = row[r] ?? 0;
+                  const destaque = p > 1 && val !== (prevRow[r] ?? 0);
+                  return (
+                    <td key={r} className="w-40">
+                      <div
+                        style={destaque ? { boxShadow: `inset 0 0 0 2px ${AMBER}`, borderRadius: 4 } : undefined}
+                      >
+                        <NumCell value={val} onCommit={(v) => setDemanda(p, r, v)} />
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </Zebra>
+    </SectionCard>
   );
 }
 
