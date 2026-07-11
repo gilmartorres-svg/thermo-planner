@@ -326,6 +326,12 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     vReal[p] = got; vTot[p] = got[0] + got[1] + got[2];
     paFim[p] = disp - vTot[p];
     receita[p] = got[0] * (+S.preco[p][0] || 0) + got[1] * (+S.preco[p][1] || 0) + got[2] * (+S.preco[p][2] || 0);
+    // Seção 10: alerta inverso — planejado abaixo da demanda com sobra de estoque
+    const totWant = want[0] + want[1] + want[2];
+    const totDem = (demP[0] || 0) + (demP[1] || 0) + (demP[2] || 0);
+    if (paFim[p] > 0 && totWant > 0 && totWant < totDem) {
+      A(`P${p}: vendas planejadas abaixo da demanda prevista com estoque em sobra — demanda desperdiçada`, true);
+    }
 
     const rv = receita[p];
     if (S.pagto === '100') inF[p] += rv;
