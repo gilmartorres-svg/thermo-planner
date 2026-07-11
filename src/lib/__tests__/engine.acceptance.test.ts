@@ -2,7 +2,7 @@
 // Falhas indicam correções pendentes no motor — NUNCA ajustar os valores esperados para fazer os testes passarem.
 
 import { describe, it, expect } from 'vitest';
-import { simular, type EstadoPlano } from '../engine';
+import { simular, planoInicial, type EstadoPlano } from '../engine';
 
 const P = 8;
 const zeros = () => Array(P + 1).fill(0);
