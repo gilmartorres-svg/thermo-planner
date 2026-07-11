@@ -444,19 +444,21 @@ function MktPropaganda({
 }: { S: EstadoPlano; setPerReg: SimCtx["setPerReg"] }) {
   return (
     <SectionCard title="Propaganda por Mídia e Região" icon="📣"
-      right={<span className="text-xs text-white/85">Teto por campo: {money(TETO_PROP)}</span>}>
+      right={<span className="text-xs text-white/85">Teto por período (e-NEWS)</span>}>
       <Zebra>
         <thead>
           <tr>
             <th>Período</th>
             <th className="!text-right" colSpan={3}>Tradicional (R1 / R2 / R3)</th>
             <th className="!text-right" colSpan={3}>Online (R1 / R2 / R3)</th>
+            <th className="!text-right">Teto</th>
             <th className="!text-right">Total</th>
           </tr>
         </thead>
         <tbody>
           {Array.from({ length: P }, (_, i) => i + 1).map((p) => {
             const total = [0, 1, 2].reduce((s, r) => s + (S.propT[p][r] || 0) + (S.propO[p][r] || 0), 0);
+            const teto = tetoPropDe(S, p);
             return (
               <tr key={p}>
                 <td className="font-medium">P{p}</td>
@@ -465,7 +467,7 @@ function MktPropaganda({
                     <NumCell
                       value={S.propT[p][r]}
                       onCommit={(v) => setPerReg("propT", p, r, v)}
-                      warn={(S.propT[p][r] || 0) > TETO_PROP}
+                      warn={(S.propT[p][r] || 0) > teto}
                     />
                   </td>
                 ))}
@@ -474,10 +476,11 @@ function MktPropaganda({
                     <NumCell
                       value={S.propO[p][r]}
                       onCommit={(v) => setPerReg("propO", p, r, v)}
-                      warn={(S.propO[p][r] || 0) > TETO_PROP}
+                      warn={(S.propO[p][r] || 0) > teto}
                     />
                   </td>
                 ))}
+                <td className="text-right text-xs text-muted-foreground">{money(teto)}</td>
                 <td className="text-right font-medium">{money(total)}</td>
               </tr>
             );
@@ -731,12 +734,13 @@ function GrupoRH({
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 5 — FINANÇAS
 // ═══════════════════════════════════════════════════════════════
-export function TelaFinancas({ S, setPer }: SimCtx) {
+export function TelaFinancas({ S, setPer, setEstado }: SimCtx) {
   return (
     <Tabs defaultValue="inv" className="w-full">
       <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="inv">Investimentos</TabsTrigger>
         <TabsTrigger value="fin">Financiamentos</TabsTrigger>
+        <TabsTrigger value="eve">Eventos</TabsTrigger>
       </TabsList>
 
       <TabsContent value="inv" className="mt-4">
@@ -771,7 +775,54 @@ export function TelaFinancas({ S, setPer }: SimCtx) {
           </div>
         </SectionCard>
       </TabsContent>
+
+      <TabsContent value="eve" className="mt-4">
+        <EventosNaoRecorrentes S={S} setEstado={setEstado} />
+      </TabsContent>
     </Tabs>
+  );
+}
+
+// Seção nova: Eventos e gastos não recorrentes (Finanças) — entram na DRE e no caixa do próprio período.
+function EventosNaoRecorrentes({ S, setEstado }: { S: EstadoPlano; setEstado: SimCtx["setEstado"] }) {
+  const zerosN = () => Array(P + 1).fill(0);
+  const desp = S.eventosDesp && S.eventosDesp.length === P + 1 ? S.eventosDesp : zerosN();
+  const rec = S.eventosRec && S.eventosRec.length === P + 1 ? S.eventosRec : zerosN();
+  const setOne = (arr: number[], key: "eventosDesp" | "eventosRec", p: number, v: number) => {
+    const next = [...arr];
+    next[p] = v;
+    setEstado({ ...S, [key]: next });
+  };
+  return (
+    <SectionCard title="Eventos e gastos não recorrentes" icon="⚡">
+      <p className="text-xs text-muted-foreground mb-3">
+        Valores entram na <strong style={{ color: "#1B3A4B" }}>DRE</strong> e no <strong style={{ color: "#1B3A4B" }}>caixa</strong> do próprio período
+        (ex.: licença ambiental, Anicote, registro de nome). Use <span style={{ color: "#D97706" }} className="font-medium">Despesas</span> para saídas e
+        <span style={{ color: "#D97706" }} className="font-medium"> Receitas</span> para entradas pontuais.
+      </p>
+      <Zebra>
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th className="!text-right">Despesas de eventos</th>
+            <th className="!text-right">Receitas de eventos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: P }, (_, i) => i + 1).map((p) => (
+            <tr key={p}>
+              <td className="font-medium">P{p}</td>
+              <td className="w-40">
+                <NumCell value={desp[p] || 0} onCommit={(v) => setOne(desp, "eventosDesp", p, v)} />
+              </td>
+              <td className="w-40">
+                <NumCell value={rec[p] || 0} onCommit={(v) => setOne(rec, "eventosRec", p, v)} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Zebra>
+    </SectionCard>
   );
 }
 
@@ -971,18 +1022,10 @@ function KPI({ label, value, color }: { label: string; value: string; color?: "g
 }
 
 // ─── Indicadores oficiais (Faturamento / Lucratividade / Crescimento do PL) ───
+// Seção 14: lê diretamente do motor — sem cálculo local divergente.
 export function calcIndicadores(R: ResultadoSimulacao) {
   const faturamento = R.receita.reduce((a, b) => a + (b || 0), 0);
-  const lucratividade = R.roe;
-  const dre = R.dre;
-  let crescPL = 0;
-  if (dre.length >= 2) {
-    const CAP = 3_000_000;
-    const plAnt = CAP + dre[dre.length - 2].llAcum;
-    const plFim = CAP + dre[dre.length - 1].llAcum;
-    crescPL = plAnt !== 0 ? (plFim - plAnt) / plAnt : 0;
-  }
-  return { faturamento, lucratividade, crescPL };
+  return { faturamento, lucratividade: R.lucratividade, crescPL: R.crescimentoPL };
 }
 
 function IndicadorCard({
@@ -1030,9 +1073,9 @@ export function IndicadoresBar({ R, compact = true }: { R: ResultadoSimulacao; c
       <IndicadorCard
         nome="Lucratividade" peso={7}
         valor={(lucratividade * 100).toFixed(2) + "%"}
-        subvalor={money(R.llAcum)}
-        detalhe={`ROE — LL acum. ${money(R.llAcum)}`}
-        tone={lucratividade < 0 ? "red" : lucratividade >= META_ROE ? "green" : "amber"}
+        subvalor={`LL acum. ${money(R.llAcum)} ÷ receita acum. ${money(faturamento)}`}
+        detalhe={`ROE (retorno sobre capital inicial): ${(R.roe * 100).toFixed(2)}% — meta ${(META_ROE * 100).toFixed(2)}%`}
+        tone={lucratividade < 0 ? "red" : lucratividade > 0 ? "green" : "amber"}
         compact={compact}
       />
       <IndicadorCard

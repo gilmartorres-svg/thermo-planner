@@ -101,6 +101,19 @@ export function cfFaixa(cap: number): number {
   return cfFaixaTab(cap, DEF_FAIXAS);
 }
 
+// ─── Seção 10: demanda prevista por período/região ────────────────────────
+// Valor default (media oficial por empresa/região no INFONEWS até P2).
+// A partir de P3, substituir manualmente pelos números do INFONEWS "Previsão da Demanda".
+export const DEMANDA_DEFAULT: number[][] = (() => {
+  const arr: number[][] = [[0, 0, 0]];
+  for (let i = 1; i <= P; i++) arr.push([800, 1801, 2064]);
+  return arr;
+})();
+
+export function demandaPrevDe(S: EstadoPlano, p: number): number[] {
+  return S.demandaPrev?.[p] ?? DEMANDA_DEFAULT[p];
+}
+
 export type FormaPagamento = '100' | '5050' | '333334';
 
 export interface FlagsPlano {
@@ -139,6 +152,8 @@ export interface EstadoPlano {
   // Seção 9: inflação informativa (NÃO aplicada automaticamente a nenhuma rubrica —
   // quais rubricas sofrem reajuste será confirmado no Real P3).
   inflacao?: number[];
+  // Seção 10: demanda prevista por período/região (opcional; default DEMANDA_DEFAULT)
+  demandaPrev?: number[][];
 }
 
 export interface Alerta { texto: string; aviso: boolean }
@@ -159,6 +174,9 @@ export interface ResultadoSimulacao {
   cap: number[]; op: number[]; sp: number[]; vd: number[]; sv: number[];
   prod: number[]; vTot: number[]; receita: number[]; paFim: number[]; mpFim: number[];
   alertas: Alerta[];
+  // Seção 14: indicadores oficiais SES
+  lucratividade: number; // LL acumulado ÷ Σ receita bruta (peso 7)
+  crescimentoPL: number; // (PL final − 3.000.000) / 3.000.000 (peso 6)
 }
 
 const zeros = () => Array(P + 1).fill(0);
@@ -298,9 +316,22 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     for (const r of [1, 2, 0]) { got[r] = Math.min(want[r], rest); rest -= got[r]; }
     if (want[0] + want[1] + want[2] > disp) A(`P${p}: previsão de vendas maior que o disponível — corte por prioridade R2>R3>R1`, true);
     for (const r of [0, 1, 2]) { if (got[r] > 0 && (+S.vend[p][r] || 0) === 0) A(`P${p}: vendas em ${REGIOES[r]} sem vendedor alocado`); }
+    // Seção 10: validação da demanda prevista sobre vendas PLANEJADAS
+    const demP = demandaPrevDe(S, p);
+    for (const r of [0, 1, 2]) {
+      if (want[r] > (demP[r] || 0)) {
+        A(`P${p}: vendas planejadas em R${r + 1} (${want[r]}) excedem a demanda prevista (${demP[r] || 0}) — risco de superestimação de receita`, true);
+      }
+    }
     vReal[p] = got; vTot[p] = got[0] + got[1] + got[2];
     paFim[p] = disp - vTot[p];
     receita[p] = got[0] * (+S.preco[p][0] || 0) + got[1] * (+S.preco[p][1] || 0) + got[2] * (+S.preco[p][2] || 0);
+    // Seção 10: alerta inverso — planejado abaixo da demanda com sobra de estoque
+    const totWant = want[0] + want[1] + want[2];
+    const totDem = (demP[0] || 0) + (demP[1] || 0) + (demP[2] || 0);
+    if (paFim[p] > 0 && totWant > 0 && totWant < totDem) {
+      A(`P${p}: vendas planejadas abaixo da demanda prevista com estoque em sobra — demanda desperdiçada`, true);
+    }
 
     const rv = receita[p];
     if (S.pagto === '100') inF[p] += rv;
@@ -421,5 +452,11 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     });
   }
 
-  return { dre, llAcum, pl: CAPITAL + llAcum, roe: llAcum / CAPITAL, caixaMin, cap: capAtiva, op, sp, vd, sv, prod, vTot, receita, paFim, mpFim, alertas };
+  // Seção 14: indicadores oficiais
+  const receitaAcum = receita.reduce((a, b) => a + (b || 0), 0);
+  const lucratividade = receitaAcum > 0 ? llAcum / receitaAcum : 0;
+  const pl = CAPITAL + llAcum;
+  const crescimentoPL = (pl - CAPITAL) / CAPITAL;
+
+  return { dre, llAcum, pl, roe: llAcum / CAPITAL, caixaMin, cap: capAtiva, op, sp, vd, sv, prod, vTot, receita, paFim, mpFim, alertas, lucratividade, crescimentoPL };
 }

@@ -2,7 +2,7 @@
 // Falhas indicam correções pendentes no motor — NUNCA ajustar os valores esperados para fazer os testes passarem.
 
 import { describe, it, expect } from 'vitest';
-import { simular, type EstadoPlano } from '../engine';
+import { simular, planoInicial, type EstadoPlano } from '../engine';
 
 const P = 8;
 const zeros = () => Array(P + 1).fill(0);
@@ -127,5 +127,42 @@ describe('Regressão — teto de propaganda', () => {
       (a) => a.texto.includes('P1') && a.texto.includes('acima do teto'),
     );
     expect(alertasTetoP1.length).toBeGreaterThan(0);
+  });
+});
+
+describe('Fase 3 — indicadores e demanda', () => {
+  it('crescimentoPL com planoReal() = -625730 / 3000000', () => {
+    const R = simular(planoReal());
+    expect(R.crescimentoPL).toBeCloseTo(-625730 / 3000000, 6);
+  });
+
+  it('lucratividade com planoReal() = 0 (receita acumulada zero — guarda de divisão)', () => {
+    const R = simular(planoReal());
+    expect(R.lucratividade).toBe(0);
+  });
+
+  it('planoInicial(): lucratividade === llAcum / Σ receita e lucratividade !== roe', () => {
+    const R = simular(planoInicial());
+    const somaReceita = R.receita.reduce((a, b) => a + (b || 0), 0);
+    expect(R.lucratividade).toBeCloseTo(R.llAcum / somaReceita, 10);
+    expect(R.lucratividade).not.toBe(R.roe);
+  });
+
+  it('alerta de excesso: vendas planejadas em R1 acima da demanda em P3 gera alerta', () => {
+    const S = planoReal();
+    S.vendas[3] = [900, 0, 0];
+    S.preco[3] = [500, 0, 0];
+    const R = simular(S);
+    const al = R.alertas.filter((a) => a.texto.includes('P3') && a.texto.includes('excedem a demanda prevista'));
+    expect(al.length).toBeGreaterThan(0);
+  });
+
+  it('sem falso positivo: vendas planejadas em R1 = demanda em P3 não gera alerta', () => {
+    const S = planoReal();
+    S.vendas[3] = [800, 0, 0];
+    S.preco[3] = [500, 0, 0];
+    const R = simular(S);
+    const al = R.alertas.filter((a) => a.texto.includes('P3') && a.texto.includes('excedem a demanda prevista'));
+    expect(al).toHaveLength(0);
   });
 });
