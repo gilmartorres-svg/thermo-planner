@@ -6,7 +6,8 @@ export const REGIOES = ['R1', 'R2', 'R3'] as const;
 const FRETE = [20, 0, 44];
 const CUSTO_MP = 40, MP_UN = 3, MOD_H = 2.4, SAL_H = 11, H_PER = 480;
 const MOD_UN = MOD_H * SAL_H; // 26.4
-const ARM_MP = 3, ARM_PA = 4.85, ADMIN = 52000, IR = 0.30, CAPITAL = 3_000_000;
+// ADMIN calibrado pelos relatórios oficiais SES (Real P1 / Projetado P2).
+const ARM_MP = 3, ARM_PA = 4.85, ADMIN = 42000, IR = 0.30, CAPITAL = 3_000_000;
 export const META_ROE = 0.5529;
 export const META_LL = CAPITAL * META_ROE;
 const MODULO = 210; // $/unidade de capacidade
@@ -30,6 +31,14 @@ export function cfFaixa(cap: number): number {
 
 export type FormaPagamento = '100' | '5050' | '333334';
 
+export interface FlagsPlano {
+  // C1: quando ligada, expansão opera a 90% no primeiro período (default: desligada).
+  ativacaoParcialExpansao?: boolean;
+  // Quando ligada, IR de 30% incide apenas sobre a parcela positiva do LAIR
+  // que exceder o prejuízo acumulado (default: desligada — comportamento atual).
+  compensarPrejuizoAcumulado?: boolean;
+}
+
 export interface EstadoPlano {
   capIni: number;
   pagto: FormaPagamento;
@@ -47,6 +56,10 @@ export interface EstadoPlano {
   com: number[];
   apG: number[]; apC: number[]; apM: number[];
   emC: number[]; emL: number[];
+  // C5: eventos e gastos não recorrentes (opcionais; ausência = zeros)
+  eventosDesp?: number[];
+  eventosRec?: number[];
+  flags?: FlagsPlano;
 }
 
 export interface Alerta { texto: string; aviso: boolean }
@@ -58,6 +71,8 @@ export interface PeriodoDRE {
   jRec: number; jPag: number; lair: number; ir: number; ll: number; llAcum: number;
   caixa: number; prod: number; vTot: number; cap: number; pa: number; mp: number;
   op: number; sp: number; vd: number; sv: number;
+  // C5: eventos não recorrentes
+  eventosDesp: number; eventosRec: number;
 }
 
 export interface ResultadoSimulacao {
@@ -89,6 +104,9 @@ export function planoInicial(): EstadoPlano {
     apC:[0,700000,500000,400000,500000,600000,700000,800000,0],
     apM:[0,1200000,0,0,0,0,0,0,0],
     emC: zeros(), emL: zeros(),
+    // C5: eventos oficiais do Real P1 / Projetado P2
+    eventosDesp: [0, 101850, 5500, 0, 0, 0, 0, 0, 0],
+    eventosRec:  [0,   1850,    0, 0, 0, 0, 0, 0, 0],
   };
 }
 
@@ -100,8 +118,40 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
   const prod = zeros(), mpFim = zeros(), paFim = zeros(), vTot = zeros(), receita = zeros();
   const vReal = zerosR();
 
+  // Capacidade instalada (informativa — usada apenas para saldo contábil auxiliar)
   cap[1] = S.capIni;
   for (let p = 2; p <= P; p++) cap[p] = cap[p - 1] + (+S.exp[p - 1] || 0);
+
+  // C1 + C3: capacidade ATIVA (regra dos 90% em P2; expansões operam a partir de T+1)
+  const capAtiva = zeros();
+  const parcial = !!(S.flags && S.flags.ativacaoParcialExpansao);
+  capAtiva[1] = 0; // fábrica em construção
+  capAtiva[2] = Math.round(0.9 * S.capIni / 100) * 100;
+  for (let p = 3; p <= P; p++) {
+    let base = S.capIni; // fábrica original 100% a partir de P3
+    for (let t = 1; t <= p - 1; t++) {
+      const e = +S.exp[t] || 0;
+      if (!e) continue;
+      if (t + 1 > p) continue;
+      if (t + 1 === p && parcial) base += Math.round(0.9 * e / 100) * 100;
+      else base += e;
+    }
+    capAtiva[p] = base;
+  }
+
+  // C2: valor do investimento sujeito à depreciação (bruto, sem baixa)
+  const investAtivo = zeros();
+  investAtivo[1] = 0;
+  investAtivo[2] = 0.9 * S.capIni * MODULO;
+  for (let p = 3; p <= P; p++) {
+    let base = S.capIni * MODULO;
+    for (let t = 1; t <= p - 1; t++) {
+      const e = +S.exp[t] || 0;
+      if (e && t + 1 <= p) base += e * MODULO;
+    }
+    investAtivo[p] = base;
+  }
+
   for (let p = 1; p <= P; p++) {
     op[p] = (op[p - 1] || 0) + (+S.opC[p - 1] || 0) - (+S.opD[p - 1] || 0);
     sp[p] = (sp[p - 1] || 0) + (+S.spC[p - 1] || 0) - (+S.spD[p - 1] || 0);
@@ -121,6 +171,22 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     if (c) { outF[p] += c * .2; if (p + 1 <= P) outF[p + 1] += c * .4; if (p + 2 <= P) outF[p + 2] += c * .4; }
   }
 
+  // C4: gasto total (contratação + treinamento + demissão) no período em que é decidido.
+  // Parcelamento em 4 x 25% na DRE. Parcelas além de P8 não são reconhecidas no horizonte.
+  // Observação: parcelamento do custo de demissão pendente de confirmação empírica no Real P3+.
+  const contrGasto = zeros();
+  for (let p = 1; p <= P; p++) {
+    contrGasto[p] =
+      (+S.opC[p] || 0) * (OP.c + OP.t) +
+      (+S.spC[p] || 0) * (SP.c + SP.t) +
+      (+S.vdC[p] || 0) * (VD.c + VD.t) +
+      (+S.svC[p] || 0) * (SV.c + SV.t) +
+      (+S.opD[p] || 0) * OP.d +
+      (+S.spD[p] || 0) * SP.d +
+      (+S.vdD[p] || 0) * VD.d +
+      (+S.svD[p] || 0) * SV.d;
+  }
+
   for (let p = 1; p <= P; p++) {
     const mpDisp = (mpFim[p - 1] || 0) + (p >= 2 ? (+S.mp[p - 1] || 0) : 0);
     const supNec = Math.ceil(op[p] / 12) || 0;
@@ -128,8 +194,9 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     if (op[p] > 0 && sp[p] < supNec) A(`P${p}: supervisores de produção insuficientes (${sp[p]}/${supNec}) — produtividade reduzida a 80%`);
     const hDisp = op[p] * H_PER * produt;
     const progAnt = p >= 2 ? (+S.prog[p - 1] || 0) : 0;
-    const q = Math.min(progAnt, cap[p], Math.floor(hDisp / MOD_H), Math.floor(mpDisp / MP_UN));
-    if (progAnt > cap[p]) A(`P${p}: programação excede a capacidade`);
+    // C1/C3: limite de produção usa capacidade ATIVA do período
+    const q = Math.min(progAnt, capAtiva[p], Math.floor(hDisp / MOD_H), Math.floor(mpDisp / MP_UN));
+    if (progAnt > capAtiva[p]) A(`P${p}: programação excede a capacidade ativa`);
     if (progAnt > Math.floor(hDisp / MOD_H)) A(`P${p}: horas de MOD insuficientes`);
     if (progAnt > Math.floor(mpDisp / MP_UN)) A(`P${p}: matéria-prima insuficiente`);
     prod[p] = Math.max(0, q);
@@ -164,6 +231,7 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
   if (pdAc > 0 && pdAc < 102000) A(`P&D acumulado abaixo dos $102.000 do ponto de saturação (~51%)`, true);
 
   const dre: PeriodoDRE[] = []; let caixa = CAPITAL, llAcum = 0, caixaMin = Infinity;
+  let prejAcum = 0; // para flag compensarPrejuizoAcumulado
   const irPag = zeros(), folhaPag = zeros(), rotSaldo = zeros();
   const apRet = zeros(), emPay = zeros();
   for (let p = 1; p <= P; p++) {
@@ -178,55 +246,86 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     for (let t = p + 1; t <= P; t++) { lpJur[t] += saldo * 0.043; if (t > p + 4) { const par = L / 4; lpAmt[t] += par; saldo -= par; } }
   }
 
+  // C7: aplicação de giro efetiva (após eventual resgate antecipado no próprio período)
+  const apGEfetivo = zeros();
+  const compensarIR = !!(S.flags && S.flags.compensarPrejuizoAcumulado);
+
   for (let p = 1; p <= P; p++) {
     const cpv = vTot[p] * (CUSTO_MP * MP_UN + MOD_UN);
     const frete = vReal[p][0] * FRETE[0] + vReal[p][2] * FRETE[2];
     const comis = receita[p] * ((+S.com[p] || 0) / 100);
-    const arm = mpFim[p] * ARM_MP + paFim[p] * ARM_PA;
+    // C6: PA paga armazenagem sobre o estoque que ENTRA no período (paFim do período anterior)
+    const arm = mpFim[p] * ARM_MP + (paFim[p - 1] || 0) * ARM_PA;
     const prop = (+S.propT[p][0] || 0) + (+S.propT[p][1] || 0) + (+S.propT[p][2] || 0) + (+S.propO[p][0] || 0) + (+S.propO[p][1] || 0) + (+S.propO[p][2] || 0);
     const pd = +S.pd[p] || 0;
-    const fixos = cfFaixa(cap[p]);
+    // C1: fixos usam capacidade ATIVA — P1 = 0 (fábrica em construção)
+    const fixos = cfFaixa(capAtiva[p]);
     const folhaOp = op[p] * OP.sal;
     const folhaOpExtra = Math.max(0, folhaOp - prod[p] * MOD_UN);
     const folhaSup = sp[p] * SP.sal, folhaVd = vd[p] * VD.sal, folhaSv = sv[p] * SV.sal;
-    const contr = (+S.opC[p] || 0) * (OP.c + OP.t) + (+S.spC[p] || 0) * (SP.c + SP.t) + (+S.vdC[p] || 0) * (VD.c + VD.t) + (+S.svC[p] || 0) * (SV.c + SV.t)
-      + (+S.opD[p] || 0) * OP.d + (+S.spD[p] || 0) * SP.d + (+S.vdD[p] || 0) * VD.d + (+S.svD[p] || 0) * SV.d;
-    const jGiro = (p >= 2 ? (+S.apG[p - 1] || 0) * 0.018 : 0);
+    // C4: DRE reconhece 4 x 25% do gasto de contratação/treinamento/demissão
+    let contr = 0;
+    for (let t = Math.max(1, p - 3); t <= p; t++) contr += 0.25 * contrGasto[t];
+    // C7: juros de aplicação de giro usam saldo EFETIVO do período anterior
+    const jGiro = (p >= 2 ? apGEfetivo[p - 1] * 0.018 : 0);
     const jCP = (p >= 2 ? (+S.apC[p - 1] || 0) * 0.035 : 0);
     const jMP = (p >= 3 ? (+S.apM[p - 2] || 0) * 0.04 : 0);
     const jRec = jGiro + jCP + jMP;
     const jRot = (rotSaldo[p - 1] || 0) * 0.08;
     const jEmC = (p >= 2 ? (+S.emC[p - 1] || 0) * 0.049 : 0);
     const jPag = jRot + jEmC + lpJur[p];
-    const deprec = cap[p] * MODULO * DEPREC;
-    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - ADMIN - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr - deprec + jRec - jPag;
-    const ir = lair > 0 ? lair * IR : 0;
+    // C2: depreciação incide sobre investimento ativo (bruto)
+    const deprec = investAtivo[p] * DEPREC;
+    // C5: eventos não recorrentes entram no LAIR (despesa negativa, receita positiva)
+    const evDesp = +(S.eventosDesp?.[p] || 0);
+    const evRec = +(S.eventosRec?.[p] || 0);
+    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - ADMIN - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr - deprec + jRec - jPag - evDesp + evRec;
+    let ir = 0;
+    if (lair > 0) {
+      if (compensarIR) {
+        const baseIR = Math.max(0, lair - prejAcum);
+        ir = baseIR * IR;
+      } else {
+        ir = lair * IR;
+      }
+    }
     const ll = lair - ir;
     llAcum += ll;
+    // atualiza prejuízo acumulado (positivo) para próximas compensações
+    if (compensarIR) {
+      if (lair <= 0) prejAcum += -lair;
+      else prejAcum = Math.max(0, prejAcum - lair);
+    }
     if (p + 1 <= P) irPag[p + 1] += ir;
-    const folhaCaixa = folhaOp + folhaSup + folhaVd + folhaSv + contr + comis;
+    const folhaCaixa = folhaOp + folhaSup + folhaVd + folhaSv + contrGasto[p] + comis;
     if (p + 1 <= P) folhaPag[p + 1] += folhaCaixa;
 
     let cx = caixa;
     cx += inF[p]; cx += apRet[p];
-    cx += (p >= 2 ? ((+S.apG[p - 1] || 0) * 1.018) : 0);
+    // C7: crédito do giro no caixa usa saldo EFETIVO do período anterior
+    cx += (p >= 2 ? apGEfetivo[p - 1] * 1.018 : 0);
     cx += (+S.emC[p] || 0) + (+S.emL[p] || 0);
     cx -= outF[p]; cx -= prop + pd + ADMIN + fixos + arm;
     cx -= folhaPag[p]; cx -= irPag[p];
     cx -= emPay[p]; cx -= lpJur[p] + lpAmt[p];
     cx -= (rotSaldo[p - 1] || 0) * 1.08;
+    // C5: eventos entram/saem no caixa do próprio período
+    cx -= evDesp; cx += evRec;
     let apG = +S.apG[p] || 0, apC = +S.apC[p] || 0, apM = +S.apM[p] || 0;
     cx -= apG + apC + apM;
     if (cx < 0 && apG > 0) { const usa = Math.min(apG, -cx); cx += usa; apG -= usa; A(`P${p}: aplicação de giro resgatada antecipadamente para cobrir o caixa`, true); }
+    // C7: registra saldo efetivo aplicado neste período (após eventual resgate)
+    apGEfetivo[p] = apG;
     if (cx < 0) { rotSaldo[p] = -cx; cx = 0; A(`P${p}: caixa estourou — rotativo automático a 8% (pago em P${p + 1})`); }
     caixa = cx; caixaMin = Math.min(caixaMin, cx);
 
     dre.push({
       p, receita: receita[p], cpv, frete, comis, arm, prop, pd, fixos, admin: ADMIN, ocios: folhaOpExtra,
       folhaSup, folhaVd, folhaSv, contr, deprec, jRec, jPag, lair, ir, ll, llAcum, caixa: cx,
-      prod: prod[p], vTot: vTot[p], cap: cap[p], pa: paFim[p], mp: mpFim[p], op: op[p], sp: sp[p], vd: vd[p], sv: sv[p],
+      prod: prod[p], vTot: vTot[p], cap: capAtiva[p], pa: paFim[p], mp: mpFim[p], op: op[p], sp: sp[p], vd: vd[p], sv: sv[p],
+      eventosDesp: evDesp, eventosRec: evRec,
     });
   }
 
-  return { dre, llAcum, pl: CAPITAL + llAcum, roe: llAcum / CAPITAL, caixaMin, cap, op, sp, vd, sv, prod, vTot, receita, paFim, mpFim, alertas };
+  return { dre, llAcum, pl: CAPITAL + llAcum, roe: llAcum / CAPITAL, caixaMin, cap: capAtiva, op, sp, vd, sv, prod, vTot, receita, paFim, mpFim, alertas };
 }
