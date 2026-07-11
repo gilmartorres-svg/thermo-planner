@@ -3,29 +3,102 @@
 
 export const P = 8;
 export const REGIOES = ['R1', 'R2', 'R3'] as const;
-const FRETE = [20, 0, 44];
-const CUSTO_MP = 40, MP_UN = 3, MOD_H = 2.4, SAL_H = 11, H_PER = 480;
-const MOD_UN = MOD_H * SAL_H; // 26.4
-const ARM_MP = 3, ARM_PA = 4.85, ADMIN = 52000, IR = 0.30, CAPITAL = 3_000_000;
+// Constantes que NÃO variam por período (regras estruturais do jogo)
+const MP_UN = 3, MOD_H = 2.4, H_PER = 480;
+const IR = 0.30, CAPITAL = 3_000_000;
+const DEPREC = 0.025;
 export const META_ROE = 0.5529;
 export const META_LL = CAPITAL * META_ROE;
-const MODULO = 210; // $/unidade de capacidade
-const DEPREC = 0.025;
-export const TETO_PROP = 20649.76; // 1% do faturamento médio potencial
 
-const OP = { c: 3000, t: 700, d: 5300, sal: 5280 };
-const SP = { c: 4700, t: 900, d: 8500, sal: 6500 };
-const VD = { c: 3500, t: 1000, d: 5900, sal: 4600 };
-const SV = { c: 5000, t: 1200, d: 9200, sal: 7100 };
+// Defaults dos parâmetros que PODEM variar por período (Seção 9).
+// Mantidos como fonte dos valores default; o loop lê tudo via PR(p)/tetoPropDe.
+const DEF_CUSTO_MP = 40;
+const DEF_SAL_H = 11;
+const DEF_ADMIN = 52000;
+const DEF_MODULO = 210;
+const DEF_ARM_MP = 3;
+const DEF_ARM_PA = 4.85;
+const DEF_FRETE: [number, number, number] = [20, 0, 44];
+const DEF_OP = { c: 3000, t: 700, d: 5300, sal: 5280 };
+const DEF_SP = { c: 4700, t: 900, d: 8500, sal: 6500 };
+const DEF_VD = { c: 3500, t: 1000, d: 5900, sal: 4600 };
+const DEF_SV = { c: 5000, t: 1200, d: 9200, sal: 7100 };
+const DEF_FAIXAS: Array<{ ate: number; custo: number }> = [
+  { ate: 1250, custo: 150000 },
+  { ate: 2500, custo: 175000 },
+  { ate: 3750, custo: 200000 },
+  { ate: 5000, custo: 225000 },
+  { ate: 6250, custo: 250000 },
+  { ate: Infinity, custo: 275000 },
+];
 
-export function cfFaixa(cap: number): number {
+// ─── Seção 8: teto de propaganda dinâmico ────────────────────────────────
+// P1 = teto vigente informado pelo e-NEWS de P1;
+// P2..P8 = teto informado pelo e-NEWS de P2 (atualizar manualmente a cada rodada
+// conforme o novo faturamento médio publicado).
+export const TETO_PROP_DEFAULT: number[] = [
+  0,
+  20649.76,
+  21727.66, 21727.66, 21727.66, 21727.66, 21727.66, 21727.66, 21727.66,
+];
+
+export function tetoPropDe(S: EstadoPlano, p: number): number {
+  return S.tetoProp?.[p] ?? TETO_PROP_DEFAULT[p];
+}
+
+/** @deprecated — usar tetoPropDe(S, p) — teto agora varia por período. */
+export const TETO_PROP = TETO_PROP_DEFAULT[1];
+
+// ─── Seção 9: tabela de parâmetros por período ───────────────────────────
+export interface ParamCargo { c: number; t: number; d: number; sal: number }
+export interface ParamsPeriodo {
+  custoMP: number;
+  salH: number;
+  op: ParamCargo;
+  sp: ParamCargo;
+  vd: ParamCargo;
+  sv: ParamCargo;
+  frete: [number, number, number];
+  faixasCF: Array<{ ate: number; custo: number }>;
+  admin: number;
+  modulo: number;
+  armMP: number;
+  armPA: number;
+}
+
+function paramPadrao(): ParamsPeriodo {
+  return {
+    custoMP: DEF_CUSTO_MP,
+    salH: DEF_SAL_H,
+    op: { ...DEF_OP },
+    sp: { ...DEF_SP },
+    vd: { ...DEF_VD },
+    sv: { ...DEF_SV },
+    frete: [...DEF_FRETE] as [number, number, number],
+    faixasCF: DEF_FAIXAS.map((f) => ({ ...f })),
+    admin: DEF_ADMIN,
+    modulo: DEF_MODULO,
+    armMP: DEF_ARM_MP,
+    armPA: DEF_ARM_PA,
+  };
+}
+
+export function paramsDefault(): ParamsPeriodo[] {
+  const arr: ParamsPeriodo[] = [];
+  for (let i = 0; i <= P; i++) arr.push(paramPadrao());
+  return arr;
+}
+
+/** Custo fixo por faixa de capacidade — recebe as faixas do período (Seção 9). */
+export function cfFaixaTab(cap: number, faixas: Array<{ ate: number; custo: number }>): number {
   if (cap <= 0) return 0;
-  if (cap <= 1250) return 150000;
-  if (cap <= 2500) return 175000;
-  if (cap <= 3750) return 200000;
-  if (cap <= 5000) return 225000;
-  if (cap <= 6250) return 250000;
-  return 275000;
+  for (const f of faixas) if (cap <= f.ate) return f.custo;
+  return faixas[faixas.length - 1].custo;
+}
+
+/** @deprecated — usar cfFaixaTab(cap, PR(p).faixasCF). */
+export function cfFaixa(cap: number): number {
+  return cfFaixaTab(cap, DEF_FAIXAS);
 }
 
 export type FormaPagamento = '100' | '5050' | '333334';
@@ -59,6 +132,13 @@ export interface EstadoPlano {
   eventosDesp?: number[];
   eventosRec?: number[];
   flags?: FlagsPlano;
+  // Seção 8: teto de propaganda por período (opcional; default TETO_PROP_DEFAULT)
+  tetoProp?: number[];
+  // Seção 9: parâmetros por período (opcional; default paramsDefault())
+  params?: ParamsPeriodo[];
+  // Seção 9: inflação informativa (NÃO aplicada automaticamente a nenhuma rubrica —
+  // quais rubricas sofrem reajuste será confirmado no Real P3).
+  inflacao?: number[];
 }
 
 export interface Alerta { texto: string; aviso: boolean }
@@ -106,12 +186,18 @@ export function planoInicial(): EstadoPlano {
     // C5: eventos oficiais do Real P1 / Projetado P2
     eventosDesp: [0, 101850, 5500, 0, 0, 0, 0, 0, 0],
     eventosRec:  [0,   1850,    0, 0, 0, 0, 0, 0, 0],
+    // Seção 9: inflação informativa — nenhuma rubrica é reajustada automaticamente.
+    inflacao:    [0, 0, 1.5, 0, 0, 0, 0, 0, 0],
   };
 }
 
 export function simular(S: EstadoPlano): ResultadoSimulacao {
   const alertas: Alerta[] = [];
   const A = (texto: string, aviso = false) => alertas.push({ texto, aviso });
+
+  // Seção 9: acesso a parâmetros por período (default se não vier no plano)
+  const DEFS = paramsDefault();
+  const PR = (p: number): ParamsPeriodo => S.params?.[p] ?? DEFS[p];
 
   const cap = zeros(), op = zeros(), sp = zeros(), vd = zeros(), sv = zeros();
   const prod = zeros(), mpFim = zeros(), paFim = zeros(), vTot = zeros(), receita = zeros();
@@ -138,15 +224,18 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     capAtiva[p] = base;
   }
 
-  // C2: valor do investimento sujeito à depreciação (bruto, sem baixa)
+  // C2 + Seção 9: valor do investimento sujeito à depreciação, a PREÇO HISTÓRICO
+  // (capex inicial usa PR(1).modulo; cada expansão usa PR(t).modulo do período em que
+  // foi decidida — inflação posterior não reavalia investimento já feito).
   const investAtivo = zeros();
+  const capexIniHist = S.capIni * PR(1).modulo;
   investAtivo[1] = 0;
-  investAtivo[2] = 0.9 * S.capIni * MODULO;
+  investAtivo[2] = 0.9 * capexIniHist;
   for (let p = 3; p <= P; p++) {
-    let base = S.capIni * MODULO;
+    let base = capexIniHist;
     for (let t = 1; t <= p - 1; t++) {
       const e = +S.exp[t] || 0;
-      if (e && t + 1 <= p) base += e * MODULO;
+      if (e && t + 1 <= p) base += e * PR(t).modulo;
     }
     investAtivo[p] = base;
   }
@@ -158,32 +247,34 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     sv[p] = (sv[p - 1] || 0) + (+S.svC[p - 1] || 0) - (+S.svD[p - 1] || 0);
   }
 
+  // Fluxos de caixa 50/25/25 do capex e 20/40/40 da MP, ambos a preço do período da decisão
   const outF = zeros(), inF = zeros();
-  const capex0 = S.capIni * MODULO;
-  outF[1] += capex0 * .5; outF[2] += capex0 * .25; outF[3] += capex0 * .25;
+  outF[1] += capexIniHist * .5; outF[2] += capexIniHist * .25; outF[3] += capexIniHist * .25;
   for (let p = 1; p <= P; p++) {
-    const e = (+S.exp[p] || 0) * MODULO;
+    const e = (+S.exp[p] || 0) * PR(p).modulo;
     if (e) { outF[p] += e * .5; if (p + 1 <= P) outF[p + 1] += e * .25; if (p + 2 <= P) outF[p + 2] += e * .25; }
   }
   for (let p = 1; p <= P; p++) {
-    const c = (+S.mp[p] || 0) * CUSTO_MP;
+    // Seção 9: MP comprada em p desembolsa ao custo do próprio p (20/40/40)
+    const c = (+S.mp[p] || 0) * PR(p).custoMP;
     if (c) { outF[p] += c * .2; if (p + 1 <= P) outF[p + 1] += c * .4; if (p + 2 <= P) outF[p + 2] += c * .4; }
   }
 
-  // C4: gasto total (contratação + treinamento + demissão) no período em que é decidido.
-  // Parcelamento em 4 x 25% na DRE. Parcelas além de P8 não são reconhecidas no horizonte.
+  // C4 + Seção 9: gasto total (contratação + treinamento + demissão) no período em que é decidido,
+  // ao preço vigente naquele período. Parcelamento em 4 x 25% na DRE.
   // Observação: parcelamento do custo de demissão pendente de confirmação empírica no Real P3+.
   const contrGasto = zeros();
   for (let p = 1; p <= P; p++) {
+    const pr = PR(p);
     contrGasto[p] =
-      (+S.opC[p] || 0) * (OP.c + OP.t) +
-      (+S.spC[p] || 0) * (SP.c + SP.t) +
-      (+S.vdC[p] || 0) * (VD.c + VD.t) +
-      (+S.svC[p] || 0) * (SV.c + SV.t) +
-      (+S.opD[p] || 0) * OP.d +
-      (+S.spD[p] || 0) * SP.d +
-      (+S.vdD[p] || 0) * VD.d +
-      (+S.svD[p] || 0) * SV.d;
+      (+S.opC[p] || 0) * (pr.op.c + pr.op.t) +
+      (+S.spC[p] || 0) * (pr.sp.c + pr.sp.t) +
+      (+S.vdC[p] || 0) * (pr.vd.c + pr.vd.t) +
+      (+S.svC[p] || 0) * (pr.sv.c + pr.sv.t) +
+      (+S.opD[p] || 0) * pr.op.d +
+      (+S.spD[p] || 0) * pr.sp.d +
+      (+S.vdD[p] || 0) * pr.vd.d +
+      (+S.svD[p] || 0) * pr.sv.d;
   }
 
   for (let p = 1; p <= P; p++) {
@@ -220,8 +311,10 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     if (aloc > vd[p]) A(`P${p}: vendedores alocados excedem os disponíveis`);
     const svNec = Math.ceil(vd[p] / 8) || 0;
     if (vd[p] > 0 && sv[p] < svNec) A(`P${p}: supervisores de venda insuficientes — perda de até 30% de produtividade`);
+    // Seção 8: teto vigente do período (via tetoPropDe)
+    const tetoP = tetoPropDe(S, p);
     for (const r of [0, 1, 2]) {
-      if ((+S.propT[p][r] || 0) > TETO_PROP || (+S.propO[p][r] || 0) > TETO_PROP)
+      if ((+S.propT[p][r] || 0) > tetoP || (+S.propO[p][r] || 0) > tetoP)
         A(`P${p}: propaganda em ${REGIOES[r]} acima do teto`);
     }
   }
@@ -250,18 +343,22 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
   const compensarIR = !!(S.flags && S.flags.compensarPrejuizoAcumulado);
 
   for (let p = 1; p <= P; p++) {
-    const cpv = vTot[p] * (CUSTO_MP * MP_UN + MOD_UN);
-    const frete = vReal[p][0] * FRETE[0] + vReal[p][2] * FRETE[2];
+    const pr = PR(p);
+    // Seção 9: CPV unitário = custo MP * unidades + horas MOD * salário-hora (ambos do período p)
+    const modUnP = MOD_H * pr.salH;
+    const cpv = vTot[p] * (pr.custoMP * MP_UN + modUnP);
+    const frete = vReal[p][0] * pr.frete[0] + vReal[p][2] * pr.frete[2];
     const comis = receita[p] * ((+S.com[p] || 0) / 100);
-    // C6: PA paga armazenagem sobre o estoque que ENTRA no período (paFim do período anterior)
-    const arm = mpFim[p] * ARM_MP + (paFim[p - 1] || 0) * ARM_PA;
+    // C6 + Seção 9: PA paga armazenagem sobre o estoque que ENTRA no período (paFim[p-1])
+    const arm = mpFim[p] * pr.armMP + (paFim[p - 1] || 0) * pr.armPA;
     const prop = (+S.propT[p][0] || 0) + (+S.propT[p][1] || 0) + (+S.propT[p][2] || 0) + (+S.propO[p][0] || 0) + (+S.propO[p][1] || 0) + (+S.propO[p][2] || 0);
     const pd = +S.pd[p] || 0;
-    // C1: fixos usam capacidade ATIVA — P1 = 0 (fábrica em construção)
-    const fixos = cfFaixa(capAtiva[p]);
-    const folhaOp = op[p] * OP.sal;
-    const folhaOpExtra = Math.max(0, folhaOp - prod[p] * MOD_UN);
-    const folhaSup = sp[p] * SP.sal, folhaVd = vd[p] * VD.sal, folhaSv = sv[p] * SV.sal;
+    // C1 + Seção 9: fixos usam capacidade ATIVA e a tabela de faixas do período
+    const fixos = cfFaixaTab(capAtiva[p], pr.faixasCF);
+    // Seção 9: folha e salários ao valor do período
+    const folhaOp = op[p] * pr.op.sal;
+    const folhaOpExtra = Math.max(0, folhaOp - prod[p] * modUnP);
+    const folhaSup = sp[p] * pr.sp.sal, folhaVd = vd[p] * pr.vd.sal, folhaSv = sv[p] * pr.sv.sal;
     // C4: DRE reconhece 4 x 25% do gasto de contratação/treinamento/demissão
     let contr = 0;
     for (let t = Math.max(1, p - 3); t <= p; t++) contr += 0.25 * contrGasto[t];
@@ -273,12 +370,12 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     const jRot = (rotSaldo[p - 1] || 0) * 0.08;
     const jEmC = (p >= 2 ? (+S.emC[p - 1] || 0) * 0.049 : 0);
     const jPag = jRot + jEmC + lpJur[p];
-    // C2: depreciação incide sobre investimento ativo (bruto)
+    // C2: depreciação incide sobre investimento ativo (bruto, a preço histórico)
     const deprec = investAtivo[p] * DEPREC;
     // C5: eventos não recorrentes entram no LAIR (despesa negativa, receita positiva)
     const evDesp = +(S.eventosDesp?.[p] || 0);
     const evRec = +(S.eventosRec?.[p] || 0);
-    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - ADMIN - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr - deprec + jRec - jPag - evDesp + evRec;
+    const lair = receita[p] - cpv - frete - comis - arm - prop - pd - fixos - pr.admin - folhaOpExtra - folhaSup - folhaVd - folhaSv - contr - deprec + jRec - jPag - evDesp + evRec;
     let ir = 0;
     if (lair > 0) {
       if (compensarIR) {
@@ -290,7 +387,6 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     }
     const ll = lair - ir;
     llAcum += ll;
-    // atualiza prejuízo acumulado (positivo) para próximas compensações
     if (compensarIR) {
       if (lair <= 0) prejAcum += -lair;
       else prejAcum = Math.max(0, prejAcum - lair);
@@ -304,7 +400,7 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     // C7: crédito do giro no caixa usa saldo EFETIVO do período anterior
     cx += (p >= 2 ? apGEfetivo[p - 1] * 1.018 : 0);
     cx += (+S.emC[p] || 0) + (+S.emL[p] || 0);
-    cx -= outF[p]; cx -= prop + pd + ADMIN + fixos + arm;
+    cx -= outF[p]; cx -= prop + pd + pr.admin + fixos + arm;
     cx -= folhaPag[p]; cx -= irPag[p];
     cx -= emPay[p]; cx -= lpJur[p] + lpAmt[p];
     cx -= (rotSaldo[p - 1] || 0) * 1.08;
@@ -313,13 +409,12 @@ export function simular(S: EstadoPlano): ResultadoSimulacao {
     let apG = +S.apG[p] || 0, apC = +S.apC[p] || 0, apM = +S.apM[p] || 0;
     cx -= apG + apC + apM;
     if (cx < 0 && apG > 0) { const usa = Math.min(apG, -cx); cx += usa; apG -= usa; A(`P${p}: aplicação de giro resgatada antecipadamente para cobrir o caixa`, true); }
-    // C7: registra saldo efetivo aplicado neste período (após eventual resgate)
     apGEfetivo[p] = apG;
     if (cx < 0) { rotSaldo[p] = -cx; cx = 0; A(`P${p}: caixa estourou — rotativo automático a 8% (pago em P${p + 1})`); }
     caixa = cx; caixaMin = Math.min(caixaMin, cx);
 
     dre.push({
-      p, receita: receita[p], cpv, frete, comis, arm, prop, pd, fixos, admin: ADMIN, ocios: folhaOpExtra,
+      p, receita: receita[p], cpv, frete, comis, arm, prop, pd, fixos, admin: pr.admin, ocios: folhaOpExtra,
       folhaSup, folhaVd, folhaSv, contr, deprec, jRec, jPag, lair, ir, ll, llAcum, caixa: cx,
       prod: prod[p], vTot: vTot[p], cap: capAtiva[p], pa: paFim[p], mp: mpFim[p], op: op[p], sp: sp[p], vd: vd[p], sv: sv[p],
       eventosDesp: evDesp, eventosRec: evRec,
