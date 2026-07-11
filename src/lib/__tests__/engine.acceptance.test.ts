@@ -118,4 +118,14 @@ describe('Regressão — teto de propaganda', () => {
     );
     expect(alertasTetoP2).toHaveLength(0);
   });
+
+  it('Propaganda de 21000 em P1 DEVE gerar alerta "acima do teto" (teto vigente P1 = 20649,76)', () => {
+    const S = planoReal();
+    S.propT[1] = [21000, 15000, 15000];
+    const R = simular(S);
+    const alertasTetoP1 = R.alertas.filter(
+      (a) => a.texto.includes('P1') && a.texto.includes('acima do teto'),
+    );
+    expect(alertasTetoP1.length).toBeGreaterThan(0);
+  });
 });
