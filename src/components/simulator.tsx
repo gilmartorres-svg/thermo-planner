@@ -974,18 +974,10 @@ function KPI({ label, value, color }: { label: string; value: string; color?: "g
 }
 
 // ─── Indicadores oficiais (Faturamento / Lucratividade / Crescimento do PL) ───
+// Seção 14: lê diretamente do motor — sem cálculo local divergente.
 export function calcIndicadores(R: ResultadoSimulacao) {
   const faturamento = R.receita.reduce((a, b) => a + (b || 0), 0);
-  const lucratividade = R.roe;
-  const dre = R.dre;
-  let crescPL = 0;
-  if (dre.length >= 2) {
-    const CAP = 3_000_000;
-    const plAnt = CAP + dre[dre.length - 2].llAcum;
-    const plFim = CAP + dre[dre.length - 1].llAcum;
-    crescPL = plAnt !== 0 ? (plFim - plAnt) / plAnt : 0;
-  }
-  return { faturamento, lucratividade, crescPL };
+  return { faturamento, lucratividade: R.lucratividade, crescPL: R.crescimentoPL };
 }
 
 function IndicadorCard({
