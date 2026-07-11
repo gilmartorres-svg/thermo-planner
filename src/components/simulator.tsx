@@ -200,7 +200,7 @@ export function TelaEstrategia({ S, R, setPer, setScalar, setEstado }: SimCtx) {
         </Zebra>
       </SectionCard>
 
-      <IndicadoresENews S={S} setEstado={(novo) => (setEstado ? setEstado(novo) : null)} />
+      <IndicadoresENews S={S} setEstado={setEstado} />
     </div>
   );
 }
