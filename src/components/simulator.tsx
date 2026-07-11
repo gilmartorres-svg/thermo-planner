@@ -734,12 +734,13 @@ function GrupoRH({
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 5 — FINANÇAS
 // ═══════════════════════════════════════════════════════════════
-export function TelaFinancas({ S, setPer }: SimCtx) {
+export function TelaFinancas({ S, setPer, setEstado }: SimCtx) {
   return (
     <Tabs defaultValue="inv" className="w-full">
       <TabsList className="bg-muted flex w-full max-w-full overflow-x-auto justify-start h-auto whitespace-nowrap">
         <TabsTrigger value="inv">Investimentos</TabsTrigger>
         <TabsTrigger value="fin">Financiamentos</TabsTrigger>
+        <TabsTrigger value="eve">Eventos</TabsTrigger>
       </TabsList>
 
       <TabsContent value="inv" className="mt-4">
@@ -774,7 +775,54 @@ export function TelaFinancas({ S, setPer }: SimCtx) {
           </div>
         </SectionCard>
       </TabsContent>
+
+      <TabsContent value="eve" className="mt-4">
+        <EventosNaoRecorrentes S={S} setEstado={setEstado} />
+      </TabsContent>
     </Tabs>
+  );
+}
+
+// Seção nova: Eventos e gastos não recorrentes (Finanças) — entram na DRE e no caixa do próprio período.
+function EventosNaoRecorrentes({ S, setEstado }: { S: EstadoPlano; setEstado: SimCtx["setEstado"] }) {
+  const zerosN = () => Array(P + 1).fill(0);
+  const desp = S.eventosDesp && S.eventosDesp.length === P + 1 ? S.eventosDesp : zerosN();
+  const rec = S.eventosRec && S.eventosRec.length === P + 1 ? S.eventosRec : zerosN();
+  const setOne = (arr: number[], key: "eventosDesp" | "eventosRec", p: number, v: number) => {
+    const next = [...arr];
+    next[p] = v;
+    setEstado({ ...S, [key]: next });
+  };
+  return (
+    <SectionCard title="Eventos e gastos não recorrentes" icon="⚡">
+      <p className="text-xs text-muted-foreground mb-3">
+        Valores entram na <strong style={{ color: "#1B3A4B" }}>DRE</strong> e no <strong style={{ color: "#1B3A4B" }}>caixa</strong> do próprio período
+        (ex.: licença ambiental, Anicote, registro de nome). Use <span style={{ color: "#D97706" }} className="font-medium">Despesas</span> para saídas e
+        <span style={{ color: "#D97706" }} className="font-medium"> Receitas</span> para entradas pontuais.
+      </p>
+      <Zebra>
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th className="!text-right">Despesas de eventos</th>
+            <th className="!text-right">Receitas de eventos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: P }, (_, i) => i + 1).map((p) => (
+            <tr key={p}>
+              <td className="font-medium">P{p}</td>
+              <td className="w-40">
+                <NumCell value={desp[p] || 0} onCommit={(v) => setOne(desp, "eventosDesp", p, v)} />
+              </td>
+              <td className="w-40">
+                <NumCell value={rec[p] || 0} onCommit={(v) => setOne(rec, "eventosRec", p, v)} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Zebra>
+    </SectionCard>
   );
 }
 
