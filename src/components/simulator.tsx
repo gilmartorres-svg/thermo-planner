@@ -1007,6 +1007,8 @@ export function TelaResultados({ S, R }: SimCtx) {
     { nome: "(–) Depreciação", get: (d) => -d.deprec, neg: true },
     { nome: "(+) Receita financeira", get: (d) => d.jRec },
     { nome: "(–) Despesa financeira", get: (d) => -d.jPag, neg: true },
+    { nome: "(–) Despesas de eventos", get: (d) => -d.eventosDesp, neg: true },
+    { nome: "(+) Receitas de eventos", get: (d) => d.eventosRec },
     { nome: "LAIR", get: (d) => d.lair, bold: true },
     { nome: "(–) IR (30%)", get: (d) => -d.ir, neg: true },
     { nome: "Lucro líquido do período", get: (d) => d.ll, bold: true },
