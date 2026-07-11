@@ -131,9 +131,10 @@ describe('Regressão — teto de propaganda', () => {
 });
 
 describe('Fase 3 — indicadores e demanda', () => {
-  it('crescimentoPL com planoReal() = -625730 / 3000000', () => {
+  it('crescimentoPL = (PL final − 3.000.000) / 3.000.000 e PL = capital + LL acumulado', () => {
     const R = simular(planoReal());
-    expect(R.crescimentoPL).toBeCloseTo(-625730 / 3000000, 6);
+    expect(R.crescimentoPL).toBeCloseTo((R.pl - 3_000_000) / 3_000_000, 10);
+    expect(R.pl).toBeCloseTo(3_000_000 + R.llAcum, 6);
   });
 
   it('lucratividade com planoReal() = 0 (receita acumulada zero — guarda de divisão)', () => {
