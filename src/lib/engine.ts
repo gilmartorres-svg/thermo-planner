@@ -101,6 +101,19 @@ export function cfFaixa(cap: number): number {
   return cfFaixaTab(cap, DEF_FAIXAS);
 }
 
+// ─── Seção 10: demanda prevista por período/região ────────────────────────
+// Valor default (media oficial por empresa/região no INFONEWS até P2).
+// A partir de P3, substituir manualmente pelos números do INFONEWS "Previsão da Demanda".
+export const DEMANDA_DEFAULT: number[][] = (() => {
+  const arr: number[][] = [[0, 0, 0]];
+  for (let i = 1; i <= P; i++) arr.push([800, 1801, 2064]);
+  return arr;
+})();
+
+export function demandaPrevDe(S: EstadoPlano, p: number): number[] {
+  return S.demandaPrev?.[p] ?? DEMANDA_DEFAULT[p];
+}
+
 export type FormaPagamento = '100' | '5050' | '333334';
 
 export interface FlagsPlano {
